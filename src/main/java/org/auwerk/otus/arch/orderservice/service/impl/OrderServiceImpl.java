@@ -13,6 +13,7 @@ import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
 
 import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.tuples.Tuple2;
 import io.vertx.mutiny.pgclient.PgPool;
 import lombok.RequiredArgsConstructor;
 
@@ -24,8 +25,15 @@ public class OrderServiceImpl implements OrderService {
     private final OrderDao dao;
 
     @Override
-    public Uni<UUID> createOrder() {
-        return dao.insert(pool);
+    public Uni<Tuple2<UUID, LocalDateTime>> createOrder() {
+        final var id = UUID.randomUUID();
+        final var createdAt = LocalDateTime.now();
+        return dao.insert(pool, id, createdAt).map(insertedRows -> {
+            if (insertedRows < 1) {
+                throw new RuntimeException("failed to insert order");
+            }
+            return Tuple2.of(id, createdAt);
+        });
     }
 
     @Override

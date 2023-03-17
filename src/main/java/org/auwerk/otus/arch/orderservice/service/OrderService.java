@@ -1,19 +1,21 @@
 package org.auwerk.otus.arch.orderservice.service;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import org.auwerk.otus.arch.orderservice.domain.Order;
 
 import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.tuples.Tuple2;
 
 public interface OrderService {
 
     /**
      * Создание нового заказа
      * 
-     * @return идентификатор созданного заказа
+     * @return идентификатор созданного заказа и время его создания
      */
-    Uni<UUID> createOrder();
+    Uni<Tuple2<UUID, LocalDateTime>> createOrder();
 
     /**
      * Размещение созданного заказа

@@ -28,16 +28,10 @@ public class OrderDao {
                 });
     }
 
-    public Uni<UUID> insert(PgPool pool) {
-        return pool.preparedQuery("INSERT INTO orders(id, created_at) VALUES($1, $2) RETURNING id")
-                .execute(Tuple.of(UUID.randomUUID(), LocalDateTime.now()))
-                .map(rowSet -> {
-                    final var rowSetIterator = rowSet.iterator();
-                    if (!rowSetIterator.hasNext()) {
-                        throw new IllegalStateException("error inserting order");
-                    }
-                    return rowSetIterator.next().getUUID("id");
-                });
+    public Uni<Integer> insert(PgPool pool, UUID id, LocalDateTime createdAt) {
+        return pool.preparedQuery("INSERT INTO orders(id, created_at) VALUES($1, $2)")
+                .execute(Tuple.of(id, createdAt))
+                .map(rowSet -> rowSet.rowCount());
     }
 
     public Uni<Integer> update(PgPool pool, Order order) {

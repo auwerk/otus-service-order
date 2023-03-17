@@ -34,9 +34,13 @@ public class OrderResource {
     @POST
     public Uni<Response> createOrder() {
         return orderService.createOrder()
-                .map(orderId -> Response.ok(CreateOrderResponseDto.builder()
-                        .orderId(orderId)
-                        .build()).build());
+                .map(result -> {
+                    final var dto = CreateOrderResponseDto.builder()
+                            .orderId(result.getItem1())
+                            .createdAt(result.getItem2())
+                            .build();
+                    return Response.ok(dto).build();
+                });
     }
 
     @PUT
@@ -44,8 +48,7 @@ public class OrderResource {
     public Uni<Response> placeOrder(@PathParam("orderId") UUID orderId, PlaceOrderRequestDto requestDto) {
         return orderService
                 .placeOrder(orderId, requestDto.getProductCode(), requestDto.getQuantity())
-                .onItem()
-                .transform(placedOrder -> Response.ok(orderMapper.toDto(placedOrder)).build())
+                .map(placedOrder -> Response.ok(orderMapper.toDto(placedOrder)).build())
                 .onFailure(OrderNotFoundException.class)
                 .recoverWithItem(Response.status(Status.NOT_FOUND).build())
                 .onFailure(OrderAlreadyPlacedException.class)

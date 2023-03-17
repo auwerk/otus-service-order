@@ -47,31 +47,29 @@ public class OrderServiceImplTest {
 
     @Test
     void createOrder_success() {
-        // given
-        final var orderId = UUID.randomUUID();
-
         // when
-        when(dao.insert(pool)).thenReturn(Uni.createFrom().item(orderId));
+        when(dao.insert(eq(pool), any(UUID.class), any(LocalDateTime.class)))
+                .thenReturn(Uni.createFrom().item(1));
         final var subscriber = service.createOrder().subscribe()
                 .withSubscriber(UniAssertSubscriber.create());
 
         // then
-        subscriber.assertItem(orderId);
+        subscriber.assertCompleted();
     }
 
     @Test
     void createOrder_insertFailure() {
         // given
-        final var errorMessage = "error inserting order";
+        final var errorMessage = "failed to insert order";
 
         // when
-        when(dao.insert(pool))
-                .thenReturn(Uni.createFrom().failure(new IllegalStateException(errorMessage)));
+        when(dao.insert(eq(pool), any(UUID.class), any(LocalDateTime.class)))
+                .thenReturn(Uni.createFrom().item(0));
         final var subscriber = service.createOrder().subscribe()
                 .withSubscriber(UniAssertSubscriber.create());
 
         // then
-        final var failure = subscriber.assertFailedWith(IllegalStateException.class)
+        final var failure = subscriber.assertFailedWith(RuntimeException.class)
                 .getFailure();
         assertEquals(errorMessage, failure.getMessage());
     }
