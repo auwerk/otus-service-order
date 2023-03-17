@@ -9,7 +9,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.auwerk.otus.arch.orderservice.api.dto.CreateOrderResponseDto;
-import org.auwerk.otus.arch.orderservice.api.dto.OrderDto;
+import org.auwerk.otus.arch.orderservice.api.dto.PlaceOrderRequestDto;
 import org.auwerk.otus.arch.orderservice.mapper.OrderMapper;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
 
@@ -34,8 +34,9 @@ public class OrderResource {
     }
 
     @PUT
-    public Uni<Response> placeOrder(OrderDto order) {
-        return orderService.placeOrder(orderMapper.fromDto(order))
+    public Uni<Response> placeOrder(PlaceOrderRequestDto requestDto) {
+        return orderService
+                .placeOrder(requestDto.getOrderId(), requestDto.getProductCode(), requestDto.getQuantity())
                 .map(placedOrder -> Response.ok(orderMapper.toDto(placedOrder)).build());
     }
 }
