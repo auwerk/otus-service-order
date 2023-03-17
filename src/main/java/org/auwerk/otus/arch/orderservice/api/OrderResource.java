@@ -40,7 +40,9 @@ public class OrderResource {
                             .createdAt(result.getItem2())
                             .build();
                     return Response.ok(dto).build();
-                });
+                })
+                .onFailure()
+                .recoverWithItem(Response.serverError().build());
     }
 
     @PUT
@@ -52,6 +54,8 @@ public class OrderResource {
                 .onFailure(OrderNotFoundException.class)
                 .recoverWithItem(Response.status(Status.NOT_FOUND).build())
                 .onFailure(OrderAlreadyPlacedException.class)
-                .recoverWithItem(Response.status(Status.CONFLICT).build());
+                .recoverWithItem(Response.status(Status.CONFLICT).build())
+                .onFailure()
+                .recoverWithItem(Response.serverError().build());
     }
 }
