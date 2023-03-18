@@ -1,9 +1,11 @@
 package org.auwerk.otus.arch.orderservice.api.dto;
 
 import io.quarkus.runtime.annotations.RegisterForReflection;
+import lombok.Builder;
 import lombok.Data;
 
 @Data
+@Builder
 @RegisterForReflection
 public class PlaceOrderRequestDto {
     private String productCode;
