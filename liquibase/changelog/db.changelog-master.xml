@@ -18,4 +18,13 @@
         </createTable>
     </changeSet>
 
+    <changeSet id="02-add-order-status-column" author="auwerk">
+        <addColumn tableName="orders">
+            <column name="status" type="varchar(16)" defaultValue="CREATED"
+                remarks="Order status code">
+                <constraints nullable="false" />
+            </column>
+        </addColumn>
+    </changeSet>
+
 </databaseChangeLog>
