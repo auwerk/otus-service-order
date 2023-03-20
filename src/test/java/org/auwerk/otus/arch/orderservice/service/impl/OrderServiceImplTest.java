@@ -18,6 +18,7 @@ import java.util.function.Function;
 
 import org.auwerk.otus.arch.orderservice.dao.OrderDao;
 import org.auwerk.otus.arch.orderservice.domain.Order;
+import org.auwerk.otus.arch.orderservice.domain.OrderStatus;
 import org.auwerk.otus.arch.orderservice.exception.OrderAlreadyPlacedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
@@ -151,6 +152,7 @@ public class OrderServiceImplTest {
                         .createdAt(LocalDateTime.now())
                         .productCode(PRODUCT_CODE)
                         .quantity(QUANTITY)
+                        .status(OrderStatus.PLACED)
                         .placedAt(LocalDateTime.now())
                         .build()));
         final var subscriber = service.placeOrder(orderId, PRODUCT_CODE, QUANTITY).subscribe()

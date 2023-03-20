@@ -9,6 +9,7 @@ import javax.enterprise.context.ApplicationScoped;
 
 import org.auwerk.otus.arch.orderservice.dao.OrderDao;
 import org.auwerk.otus.arch.orderservice.domain.Order;
+import org.auwerk.otus.arch.orderservice.domain.OrderStatus;
 import org.auwerk.otus.arch.orderservice.exception.OrderAlreadyPlacedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
@@ -47,9 +48,10 @@ public class OrderServiceImpl implements OrderService {
         return pool.withTransaction(conn -> dao.findById(pool, orderId)
                 .onItem()
                 .invoke(order -> {
-                    if (order.getPlacedAt() != null) {
+                    if (OrderStatus.PLACED.equals(order.getStatus())) {
                         throw new OrderAlreadyPlacedException(order.getId());
                     }
+                    order.setStatus(OrderStatus.PLACED);
                     order.setPlacedAt(LocalDateTime.now());
                     order.setProductCode(productCode);
                     order.setQuantity(quantity);
