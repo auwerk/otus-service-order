@@ -3,6 +3,7 @@ package org.auwerk.otus.arch.orderservice.service.impl;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -10,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.function.Function;
@@ -43,6 +45,24 @@ public class OrderServiceImplTest {
             final Function<SqlConnection, Uni<Order>> f = inv.getArgument(0);
             return f.apply(null);
         });
+    }
+
+    @Test
+    void listOrders_success() {
+        // when
+        when(dao.findAll(eq(pool), anyInt(), anyInt()))
+                .thenReturn(Uni.createFrom().item(List.of(
+                    Order.builder().build(),
+                    Order.builder().build(),
+                    Order.builder().build()
+                )));
+        final var subscriber = service.findAllOrders(10, 1).subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
+
+        // then
+        final var orders = subscriber.assertCompleted().getItem();
+        assertNotNull(orders);
+        assertEquals(3, orders.size());
     }
 
     @Test

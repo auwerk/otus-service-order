@@ -1,6 +1,7 @@
 package org.auwerk.otus.arch.orderservice.service.impl;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
@@ -23,6 +24,11 @@ public class OrderServiceImpl implements OrderService {
 
     private final PgPool pool;
     private final OrderDao dao;
+
+    @Override
+    public Uni<List<Order>> findAllOrders(int pageSize, int page) {
+        return dao.findAll(pool, pageSize, page);
+    }
 
     @Override
     public Uni<Tuple2<UUID, LocalDateTime>> createOrder() {
