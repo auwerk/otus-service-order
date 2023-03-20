@@ -1,6 +1,8 @@
 package org.auwerk.otus.arch.orderservice.dao.impl;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
@@ -16,6 +18,20 @@ import io.vertx.mutiny.sqlclient.Tuple;
 
 @ApplicationScoped
 public class OrderDaoImpl implements OrderDao {
+
+    @Override
+    public Uni<List<Order>> findAll(PgPool pool, int pageSize, int page) {
+        return pool.preparedQuery("SELECT * FROM orders ORDER BY created_at DESC LIMIT $1 OFFSET $2")
+                .execute(Tuple.of(pageSize, pageSize * (page - 1)))
+                .map(rowSet -> {
+                    final var result = new ArrayList<Order>(pageSize);
+                    final var rowSetIterator = rowSet.iterator();
+                    while (rowSetIterator.hasNext()) {
+                        result.add(mapRow(rowSetIterator.next()));
+                    }
+                    return result;
+                });
+    }
 
     @Override
     public Uni<Order> findById(PgPool pool, UUID id) {
