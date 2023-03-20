@@ -10,6 +10,7 @@ import lombok.Data;
 @RegisterForReflection
 public class OrderDto {
     private UUID id;
+    private String status;
     private String productCode;
     private Integer quantity;
     private LocalDateTime createdAt;

@@ -10,6 +10,7 @@ import javax.enterprise.context.ApplicationScoped;
 
 import org.auwerk.otus.arch.orderservice.dao.OrderDao;
 import org.auwerk.otus.arch.orderservice.domain.Order;
+import org.auwerk.otus.arch.orderservice.domain.OrderStatus;
 
 import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.pgclient.PgPool;
@@ -57,14 +58,16 @@ public class OrderDaoImpl implements OrderDao {
     public Uni<Integer> update(PgPool pool, Order order) {
         return pool
                 .preparedQuery(
-                        "UPDATE orders SET product_code=$1, quantity=$2, placed_at=$3 WHERE id=$4")
-                .execute(Tuple.of(order.getProductCode(), order.getQuantity(), order.getPlacedAt(), order.getId()))
+                        "UPDATE orders SET status=$1, product_code=$2, quantity=$3, placed_at=$4 WHERE id=$5")
+                .execute(Tuple.of(order.getStatus().name(), order.getProductCode(), order.getQuantity(),
+                        order.getPlacedAt(), order.getId()))
                 .map(rowSet -> rowSet.rowCount());
     }
 
     private Order mapRow(Row row) {
         return Order.builder()
                 .id(row.getUUID("id"))
+                .status(OrderStatus.valueOf(row.getString("status")))
                 .productCode(row.getString("product_code"))
                 .quantity(row.getInteger("quantity"))
                 .createdAt(row.getLocalDateTime("created_at"))

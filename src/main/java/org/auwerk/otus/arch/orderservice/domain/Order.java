@@ -10,6 +10,7 @@ import lombok.Data;
 @Builder
 public class Order {
     private UUID id;
+    private OrderStatus status;
     private String productCode;
     private Integer quantity;
     private LocalDateTime createdAt;
