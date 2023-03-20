@@ -1,6 +1,7 @@
 package org.auwerk.otus.arch.orderservice.api;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import org.auwerk.otus.arch.orderservice.api.dto.PlaceOrderRequestDto;
@@ -29,6 +30,18 @@ public class OrderResourceTest {
 
     @InjectMock
     OrderService orderService;
+
+    @Test
+    void listOrders() {
+        Mockito.when(orderService.findAllOrders(10, 1))
+                .thenReturn(Uni.createFrom().item(List.of(
+                    Order.builder().build(),
+                    Order.builder().build()
+                )));
+
+        RestAssured.given().param("pageSize", 10).get("/1")
+                .then().statusCode(200);
+    }
 
     @Test
     void createOrder_success() {

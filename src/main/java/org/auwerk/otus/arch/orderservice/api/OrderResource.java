@@ -3,11 +3,13 @@ package org.auwerk.otus.arch.orderservice.api;
 import java.util.UUID;
 
 import javax.ws.rs.Consumes;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
@@ -30,6 +32,15 @@ public class OrderResource {
 
     private final OrderMapper orderMapper;
     private final OrderService orderService;
+
+    @GET
+    @Path("/{page}")
+    public Uni<Response> listOrders(@QueryParam("pageSize") int pageSize, @PathParam("page") int page) {
+        return orderService.findAllOrders(pageSize, page)
+                .map(orders -> Response.ok(orderMapper.toDtos(orders)).build())
+                .onFailure()
+                .recoverWithItem(Response.serverError().build());
+    }
 
     @POST
     public Uni<Response> createOrder() {
