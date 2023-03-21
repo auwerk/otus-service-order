@@ -27,4 +27,24 @@
         </addColumn>
     </changeSet>
 
+    <changeSet id="03-order-positions-table" author="auwerk">
+        <createTable tableName="order_positions" remarks="Order positions">
+            <column name="id" type="uuid" remarks="Order position unique UD">
+                <constraints primaryKey="true" />
+            </column>
+            <column name="order_id" type="uuid" remarks="Order unique ID">
+                <constraints nullable="false" foreignKeyName="fk_order_position_order"
+                    references="orders(id)" />
+            </column>
+            <column name="product_code" type="varchar(64)" remarks="Product code">
+                <constraints nullable="false" />
+            </column>
+            <column name="quantity" type="bigint" remarks="Ordered quantity">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+        <dropColumn tableName="orders" columnName="product_code" />
+        <dropColumn tableName="orders" columnName="quantity" />
+    </changeSet>
+
 </databaseChangeLog>
