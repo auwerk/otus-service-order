@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.auwerk.otus.arch.orderservice.domain.Order;
+import org.auwerk.otus.arch.orderservice.domain.OrderPosition;
 
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.tuples.Tuple2;
@@ -23,10 +24,9 @@ public interface OrderService {
     /**
      * Размещение созданного заказа
      * 
-     * @param orderId     идентификатор размещаемого заказа
-     * @param productCode код заказываемого продукта
-     * @param quantity    количество заказываемого продукта
+     * @param orderId   идентификатор размещаемого заказа
+     * @param positions позиции заказа
      * @return размещенный заказ
      */
-    Uni<Order> placeOrder(UUID orderId, String productCode, Integer quantity);
+    Uni<Order> placeOrder(UUID orderId, List<OrderPosition> positions);
 }

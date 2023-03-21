@@ -1,6 +1,7 @@
 package org.auwerk.otus.arch.orderservice.domain;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import lombok.Builder;
@@ -11,8 +12,7 @@ import lombok.Data;
 public class Order {
     private UUID id;
     private OrderStatus status;
-    private String productCode;
-    private Integer quantity;
     private LocalDateTime createdAt;
     private LocalDateTime placedAt;
+    private List<OrderPosition> positions;
 }

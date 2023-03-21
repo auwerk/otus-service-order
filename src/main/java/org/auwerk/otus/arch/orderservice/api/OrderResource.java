@@ -19,6 +19,7 @@ import org.auwerk.otus.arch.orderservice.api.dto.PlaceOrderRequestDto;
 import org.auwerk.otus.arch.orderservice.exception.OrderAlreadyPlacedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
 import org.auwerk.otus.arch.orderservice.mapper.OrderMapper;
+import org.auwerk.otus.arch.orderservice.mapper.OrderPositionMapper;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
 
 import io.smallrye.mutiny.Uni;
@@ -31,6 +32,7 @@ import lombok.RequiredArgsConstructor;
 public class OrderResource {
 
     private final OrderMapper orderMapper;
+    private final OrderPositionMapper positionMapper;
     private final OrderService orderService;
 
     @GET
@@ -60,7 +62,7 @@ public class OrderResource {
     @Path("/{orderId}")
     public Uni<Response> placeOrder(@PathParam("orderId") UUID orderId, PlaceOrderRequestDto requestDto) {
         return orderService
-                .placeOrder(orderId, requestDto.getProductCode(), requestDto.getQuantity())
+                .placeOrder(orderId, positionMapper.fromDtos(requestDto.getPositions()))
                 .map(placedOrder -> Response.ok(orderMapper.toDto(placedOrder)).build())
                 .onFailure(OrderNotFoundException.class)
                 .recoverWithItem(Response.status(Status.NOT_FOUND).build())

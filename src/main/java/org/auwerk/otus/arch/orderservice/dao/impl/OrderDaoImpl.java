@@ -58,18 +58,15 @@ public class OrderDaoImpl implements OrderDao {
     public Uni<Integer> update(PgPool pool, Order order) {
         return pool
                 .preparedQuery(
-                        "UPDATE orders SET status=$1, product_code=$2, quantity=$3, placed_at=$4 WHERE id=$5")
-                .execute(Tuple.of(order.getStatus().name(), order.getProductCode(), order.getQuantity(),
-                        order.getPlacedAt(), order.getId()))
+                        "UPDATE orders SET status=$1, placed_at=$2 WHERE id=$3")
+                .execute(Tuple.of(order.getStatus().name(), order.getPlacedAt(), order.getId()))
                 .map(rowSet -> rowSet.rowCount());
     }
 
-    private Order mapRow(Row row) {
+    private static Order mapRow(Row row) {
         return Order.builder()
                 .id(row.getUUID("id"))
                 .status(OrderStatus.valueOf(row.getString("status")))
-                .productCode(row.getString("product_code"))
-                .quantity(row.getInteger("quantity"))
                 .createdAt(row.getLocalDateTime("created_at"))
                 .placedAt(row.getLocalDateTime("placed_at"))
                 .build();

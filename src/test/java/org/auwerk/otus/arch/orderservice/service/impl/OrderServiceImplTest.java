@@ -17,7 +17,9 @@ import java.util.UUID;
 import java.util.function.Function;
 
 import org.auwerk.otus.arch.orderservice.dao.OrderDao;
+import org.auwerk.otus.arch.orderservice.dao.OrderPositionDao;
 import org.auwerk.otus.arch.orderservice.domain.Order;
+import org.auwerk.otus.arch.orderservice.domain.OrderPosition;
 import org.auwerk.otus.arch.orderservice.domain.OrderStatus;
 import org.auwerk.otus.arch.orderservice.exception.OrderAlreadyPlacedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
@@ -36,8 +38,9 @@ public class OrderServiceImplTest {
     private static final int QUANTITY = 16;
 
     private final PgPool pool = mock(PgPool.class);
-    private final OrderDao dao = mock(OrderDao.class);
-    private final OrderService service = new OrderServiceImpl(pool, dao);
+    private final OrderDao orderDao = mock(OrderDao.class);
+    private final OrderPositionDao positionDao = mock(OrderPositionDao.class);
+    private final OrderService service = new OrderServiceImpl(pool, orderDao, positionDao);
 
     @BeforeEach
     void mockTransaction() {
@@ -51,7 +54,7 @@ public class OrderServiceImplTest {
     @Test
     void listOrders_success() {
         // when
-        when(dao.findAll(eq(pool), anyInt(), anyInt()))
+        when(orderDao.findAll(eq(pool), anyInt(), anyInt()))
                 .thenReturn(Uni.createFrom().item(List.of(
                     Order.builder().build(),
                     Order.builder().build(),
@@ -69,7 +72,7 @@ public class OrderServiceImplTest {
     @Test
     void createOrder_success() {
         // when
-        when(dao.insert(eq(pool), any(UUID.class), any(LocalDateTime.class)))
+        when(orderDao.insert(eq(pool), any(UUID.class), any(LocalDateTime.class)))
                 .thenReturn(Uni.createFrom().item(1));
         final var subscriber = service.createOrder().subscribe()
                 .withSubscriber(UniAssertSubscriber.create());
@@ -84,7 +87,7 @@ public class OrderServiceImplTest {
         final var errorMessage = "failed to insert order";
 
         // when
-        when(dao.insert(eq(pool), any(UUID.class), any(LocalDateTime.class)))
+        when(orderDao.insert(eq(pool), any(UUID.class), any(LocalDateTime.class)))
                 .thenReturn(Uni.createFrom().item(0));
         final var subscriber = service.createOrder().subscribe()
                 .withSubscriber(UniAssertSubscriber.create());
@@ -99,26 +102,37 @@ public class OrderServiceImplTest {
     void placeOrder_success() {
         // given
         final var orderId = UUID.randomUUID();
+        final var orderPositions = List.of(OrderPosition.builder()
+                .productCode(PRODUCT_CODE)
+                .quantity(QUANTITY)
+                .build());
 
         // when
-        when(dao.findById(pool, orderId))
+        when(orderDao.findById(pool, orderId))
                 .thenReturn(Uni.createFrom().item(Order.builder()
                         .id(orderId)
+                        .status(OrderStatus.CREATED)
                         .createdAt(LocalDateTime.now())
                         .build()));
-        final var subscriber = service.placeOrder(orderId, PRODUCT_CODE, QUANTITY).subscribe()
+        final var subscriber = service.placeOrder(orderId, orderPositions).subscribe()
                 .withSubscriber(UniAssertSubscriber.create());
 
         // then
         final var placedOrder = subscriber.assertCompleted().getItem();
         assertNotNull(placedOrder);
         assertEquals(orderId, placedOrder.getId());
-        assertEquals(PRODUCT_CODE, placedOrder.getProductCode());
-        assertEquals(QUANTITY, placedOrder.getQuantity());
         assertNotNull(placedOrder.getCreatedAt());
         assertNotNull(placedOrder.getPlacedAt());
+        final var placedPositions = placedOrder.getPositions();
+        assertNotNull(placedPositions);
+        assertEquals(1, placedPositions.size());
+        assertEquals(PRODUCT_CODE, placedPositions.get(0).getProductCode());
+        assertEquals(QUANTITY, placedPositions.get(0).getQuantity());
 
-        verify(dao, times(1))
+        verify(positionDao, times(1))
+                .insert(eq(pool), eq(orderId), any(OrderPosition.class));
+
+        verify(orderDao, times(1))
                 .update(eq(pool), any(Order.class));
     }
 
@@ -126,11 +140,15 @@ public class OrderServiceImplTest {
     void placeOrder_notFound() {
         // given
         final var orderId = UUID.randomUUID();
+        final var orderPositions = List.of(OrderPosition.builder()
+                .productCode(PRODUCT_CODE)
+                .quantity(QUANTITY)
+                .build());
 
         // when
-        when(dao.findById(eq(pool), any(UUID.class)))
+        when(orderDao.findById(eq(pool), any(UUID.class)))
                 .thenReturn(Uni.createFrom().failure(new NoSuchElementException("order not found")));
-        final var subscriber = service.placeOrder(orderId, PRODUCT_CODE, QUANTITY).subscribe()
+        final var subscriber = service.placeOrder(orderId, orderPositions).subscribe()
                 .withSubscriber(UniAssertSubscriber.create());
 
         // then
@@ -144,18 +162,20 @@ public class OrderServiceImplTest {
     void placeOrder_alreadyPlaced() {
         // given
         final var orderId = UUID.randomUUID();
+        final var orderPositions = List.of(OrderPosition.builder()
+                .productCode(PRODUCT_CODE)
+                .quantity(QUANTITY)
+                .build());
 
         // when
-        when(dao.findById(eq(pool), eq(orderId)))
+        when(orderDao.findById(eq(pool), eq(orderId)))
                 .thenReturn(Uni.createFrom().item(Order.builder()
                         .id(orderId)
                         .createdAt(LocalDateTime.now())
-                        .productCode(PRODUCT_CODE)
-                        .quantity(QUANTITY)
                         .status(OrderStatus.PLACED)
                         .placedAt(LocalDateTime.now())
                         .build()));
-        final var subscriber = service.placeOrder(orderId, PRODUCT_CODE, QUANTITY).subscribe()
+        final var subscriber = service.placeOrder(orderId, orderPositions).subscribe()
                 .withSubscriber(UniAssertSubscriber.create());
 
         // then

@@ -1,13 +1,20 @@
 package org.auwerk.otus.arch.orderservice.api;
 
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import javax.inject.Inject;
+
+import org.auwerk.otus.arch.orderservice.api.dto.OrderPositionDto;
 import org.auwerk.otus.arch.orderservice.api.dto.PlaceOrderRequestDto;
 import org.auwerk.otus.arch.orderservice.domain.Order;
 import org.auwerk.otus.arch.orderservice.exception.OrderAlreadyPlacedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
+import org.auwerk.otus.arch.orderservice.mapper.OrderPositionMapper;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
@@ -31,13 +38,15 @@ public class OrderResourceTest {
     @InjectMock
     OrderService orderService;
 
+    @Inject
+    OrderPositionMapper positionMapper;
+
     @Test
     void listOrders() {
         Mockito.when(orderService.findAllOrders(10, 1))
                 .thenReturn(Uni.createFrom().item(List.of(
-                    Order.builder().build(),
-                    Order.builder().build()
-                )));
+                        Order.builder().build(),
+                        Order.builder().build())));
 
         RestAssured.given().param("pageSize", 10).get("/1")
                 .then().statusCode(200);
@@ -66,18 +75,14 @@ public class OrderResourceTest {
     void placeOrder_success() {
         // given
         final var orderId = UUID.randomUUID();
-        final var request = PlaceOrderRequestDto.builder()
-                .productCode(PRODUCT_CODE)
-                .quantity(QUANTITY)
-                .build();
+        final var request = buildPlaceOrderRequest();
 
         // when
-        Mockito.when(orderService.placeOrder(orderId, PRODUCT_CODE, QUANTITY))
+        Mockito.when(orderService.placeOrder(eq(orderId), anyList()))
                 .thenReturn(Uni.createFrom().item(Order.builder()
                         .id(orderId)
                         .createdAt(LocalDateTime.now())
-                        .productCode(PRODUCT_CODE)
-                        .quantity(QUANTITY)
+                        .positions(positionMapper.fromDtos(request.getPositions()))
                         .placedAt(LocalDateTime.now())
                         .build()));
 
@@ -87,9 +92,7 @@ public class OrderResourceTest {
                 .assertThat()
                 .body("id", Matchers.equalTo(orderId.toString()))
                 .and()
-                .body("productCode", Matchers.equalTo(PRODUCT_CODE))
-                .and()
-                .body("quantity", Matchers.equalTo(QUANTITY))
+                .body("positions", Matchers.hasSize(1))
                 .and()
                 .body("createdAt", Matchers.notNullValue())
                 .and()
@@ -100,13 +103,10 @@ public class OrderResourceTest {
     void placeOrder_notFound() {
         // given
         final var orderId = UUID.randomUUID();
-        final var request = PlaceOrderRequestDto.builder()
-                .productCode(PRODUCT_CODE)
-                .quantity(QUANTITY)
-                .build();
+        final var request = buildPlaceOrderRequest();
 
         // when
-        Mockito.when(orderService.placeOrder(orderId, PRODUCT_CODE, QUANTITY))
+        Mockito.when(orderService.placeOrder(eq(orderId), anyList()))
                 .thenReturn(Uni.createFrom().failure(new OrderNotFoundException(orderId)));
 
         // then
@@ -118,17 +118,24 @@ public class OrderResourceTest {
     void placeOrder_alreadyPlaced() {
         // given
         final var orderId = UUID.randomUUID();
-        final var request = PlaceOrderRequestDto.builder()
-                .productCode(PRODUCT_CODE)
-                .quantity(QUANTITY)
-                .build();
+        final var request = buildPlaceOrderRequest();
 
         // when
-        Mockito.when(orderService.placeOrder(orderId, PRODUCT_CODE, QUANTITY))
+        Mockito.when(orderService.placeOrder(eq(orderId), anyList()))
                 .thenReturn(Uni.createFrom().failure(new OrderAlreadyPlacedException(orderId)));
 
         // then
         RestAssured.given().contentType(ContentType.JSON).body(request).put("/" + orderId)
                 .then().statusCode(409);
+    }
+
+    private static PlaceOrderRequestDto buildPlaceOrderRequest() {
+        final var orderPositions = List.of(OrderPositionDto.builder()
+                .productCode(PRODUCT_CODE)
+                .quantity(QUANTITY)
+                .build());
+        return PlaceOrderRequestDto.builder()
+                .positions(orderPositions)
+                .build();
     }
 }
