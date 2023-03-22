@@ -11,11 +11,11 @@ import io.vertx.mutiny.pgclient.PgPool;
 
 public interface OrderDao {
 
-    Uni<List<Order>> findAll(PgPool pool, int pageSize, int page);
+    Uni<List<Order>> findAllByUserName(PgPool pool, String userName, int pageSize, int page);
 
     Uni<Order> findById(PgPool pool, UUID id);
 
-    Uni<Integer> insert(PgPool pool, UUID id, LocalDateTime createdAt);
+    Uni<Integer> insert(PgPool pool, UUID id, String userName, LocalDateTime createdAt);
 
     Uni<Integer> update(PgPool pool, Order order);
 

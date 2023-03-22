@@ -21,9 +21,9 @@ import io.vertx.mutiny.sqlclient.Tuple;
 public class OrderDaoImpl implements OrderDao {
 
     @Override
-    public Uni<List<Order>> findAll(PgPool pool, int pageSize, int page) {
-        return pool.preparedQuery("SELECT * FROM orders ORDER BY created_at DESC LIMIT $1 OFFSET $2")
-                .execute(Tuple.of(pageSize, pageSize * (page - 1)))
+    public Uni<List<Order>> findAllByUserName(PgPool pool, String userName, int pageSize, int page) {
+        return pool.preparedQuery("SELECT * FROM orders WHERE username=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3")
+                .execute(Tuple.of(userName, pageSize, pageSize * (page - 1)))
                 .map(rowSet -> {
                     final var result = new ArrayList<Order>(pageSize);
                     final var rowSetIterator = rowSet.iterator();
@@ -48,9 +48,9 @@ public class OrderDaoImpl implements OrderDao {
     }
 
     @Override
-    public Uni<Integer> insert(PgPool pool, UUID id, LocalDateTime createdAt) {
-        return pool.preparedQuery("INSERT INTO orders(id, created_at) VALUES($1, $2)")
-                .execute(Tuple.of(id, createdAt))
+    public Uni<Integer> insert(PgPool pool, UUID id, String userName, LocalDateTime createdAt) {
+        return pool.preparedQuery("INSERT INTO orders(id, username, created_at) VALUES($1, $2, $3)")
+                .execute(Tuple.of(id, userName, createdAt))
                 .map(rowSet -> rowSet.rowCount());
     }
 
@@ -67,6 +67,7 @@ public class OrderDaoImpl implements OrderDao {
         return Order.builder()
                 .id(row.getUUID("id"))
                 .status(OrderStatus.valueOf(row.getString("status")))
+                .userName(row.getString("username"))
                 .createdAt(row.getLocalDateTime("created_at"))
                 .placedAt(row.getLocalDateTime("placed_at"))
                 .build();
