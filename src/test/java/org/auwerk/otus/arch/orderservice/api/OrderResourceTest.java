@@ -13,6 +13,7 @@ import org.auwerk.otus.arch.orderservice.api.dto.OrderPositionDto;
 import org.auwerk.otus.arch.orderservice.api.dto.PlaceOrderRequestDto;
 import org.auwerk.otus.arch.orderservice.domain.Order;
 import org.auwerk.otus.arch.orderservice.exception.OrderAlreadyPlacedException;
+import org.auwerk.otus.arch.orderservice.exception.OrderCreatedByDifferentUserException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
 import org.auwerk.otus.arch.orderservice.mapper.OrderPositionMapper;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
@@ -23,6 +24,7 @@ import org.mockito.Mockito;
 import io.quarkus.test.common.http.TestHTTPEndpoint;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.mockito.InjectMock;
+import io.quarkus.test.keycloak.client.KeycloakTestClient;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.smallrye.mutiny.Uni;
@@ -34,6 +36,8 @@ public class OrderResourceTest {
 
     private static final String PRODUCT_CODE = "PRODUCT1";
     private static final int QUANTITY = 16;
+
+    private final KeycloakTestClient keycloakTestClient = new KeycloakTestClient();
 
     @InjectMock
     OrderService orderService;
@@ -48,7 +52,10 @@ public class OrderResourceTest {
                         Order.builder().build(),
                         Order.builder().build())));
 
-        RestAssured.given().param("pageSize", 10).get("/1")
+        RestAssured.given()
+                .auth().oauth2(getAccessToken())
+                .param("pageSize", 10)
+                .get("/1")
                 .then().statusCode(200);
     }
 
@@ -63,7 +70,10 @@ public class OrderResourceTest {
                 .thenReturn(Uni.createFrom().item(Tuple2.of(orderId, createdAt)));
 
         // then
-        RestAssured.given().contentType(ContentType.JSON).when().post()
+        RestAssured.given()
+                .auth().oauth2(getAccessToken())
+                .contentType(ContentType.JSON)
+                .post()
                 .then().statusCode(200)
                 .assertThat()
                 .body("orderId", Matchers.equalTo(orderId.toString()))
@@ -87,7 +97,10 @@ public class OrderResourceTest {
                         .build()));
 
         // then
-        RestAssured.given().contentType(ContentType.JSON).body(request).put("/" + orderId)
+        RestAssured.given()
+                .auth().oauth2(getAccessToken())
+                .contentType(ContentType.JSON).body(request)
+                .put("/" + orderId)
                 .then().statusCode(200)
                 .assertThat()
                 .body("id", Matchers.equalTo(orderId.toString()))
@@ -110,8 +123,29 @@ public class OrderResourceTest {
                 .thenReturn(Uni.createFrom().failure(new OrderNotFoundException(orderId)));
 
         // then
-        RestAssured.given().contentType(ContentType.JSON).body(request).put("/" + orderId)
+        RestAssured.given()
+                .auth().oauth2(getAccessToken())
+                .contentType(ContentType.JSON).body(request)
+                .put("/" + orderId)
                 .then().statusCode(404);
+    }
+
+    @Test
+    void placeOrder_createdByDifferentUser() {
+        // given
+        final var orderId = UUID.randomUUID();
+        final var request = buildPlaceOrderRequest();
+
+        // when
+        Mockito.when(orderService.placeOrder(eq(orderId), anyList()))
+                .thenReturn(Uni.createFrom().failure(new OrderCreatedByDifferentUserException(orderId)));
+
+        // then
+        RestAssured.given()
+                .auth().oauth2(getAccessToken())
+                .contentType(ContentType.JSON).body(request)
+                .put("/" + orderId)
+                .then().statusCode(403);
     }
 
     @Test
@@ -125,7 +159,9 @@ public class OrderResourceTest {
                 .thenReturn(Uni.createFrom().failure(new OrderAlreadyPlacedException(orderId)));
 
         // then
-        RestAssured.given().contentType(ContentType.JSON).body(request).put("/" + orderId)
+        RestAssured.given()
+                .auth().oauth2(getAccessToken())
+                .contentType(ContentType.JSON).body(request).put("/" + orderId)
                 .then().statusCode(409);
     }
 
@@ -137,5 +173,9 @@ public class OrderResourceTest {
         return PlaceOrderRequestDto.builder()
                 .positions(orderPositions)
                 .build();
+    }
+
+    private String getAccessToken() {
+        return keycloakTestClient.getAccessToken("alice");
     }
 }
