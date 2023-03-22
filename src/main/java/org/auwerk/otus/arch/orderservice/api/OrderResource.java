@@ -17,15 +17,18 @@ import javax.ws.rs.core.Response.Status;
 import org.auwerk.otus.arch.orderservice.api.dto.CreateOrderResponseDto;
 import org.auwerk.otus.arch.orderservice.api.dto.PlaceOrderRequestDto;
 import org.auwerk.otus.arch.orderservice.exception.OrderAlreadyPlacedException;
+import org.auwerk.otus.arch.orderservice.exception.OrderCreatedByDifferentUserException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
 import org.auwerk.otus.arch.orderservice.mapper.OrderMapper;
 import org.auwerk.otus.arch.orderservice.mapper.OrderPositionMapper;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
 
+import io.quarkus.security.Authenticated;
 import io.smallrye.mutiny.Uni;
 import lombok.RequiredArgsConstructor;
 
 @Path("/")
+@Authenticated
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 @RequiredArgsConstructor
@@ -66,6 +69,8 @@ public class OrderResource {
                 .map(placedOrder -> Response.ok(orderMapper.toDto(placedOrder)).build())
                 .onFailure(OrderNotFoundException.class)
                 .recoverWithItem(Response.status(Status.NOT_FOUND).build())
+                .onFailure(OrderCreatedByDifferentUserException.class)
+                .recoverWithItem(Response.status(Status.FORBIDDEN).build())
                 .onFailure(OrderAlreadyPlacedException.class)
                 .recoverWithItem(Response.status(Status.CONFLICT).build())
                 .onFailure()
