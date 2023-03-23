@@ -2,6 +2,7 @@ package org.auwerk.otus.arch.orderservice.api;
 
 import java.util.UUID;
 
+import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -23,12 +24,11 @@ import org.auwerk.otus.arch.orderservice.mapper.OrderMapper;
 import org.auwerk.otus.arch.orderservice.mapper.OrderPositionMapper;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
 
-import io.quarkus.security.Authenticated;
 import io.smallrye.mutiny.Uni;
 import lombok.RequiredArgsConstructor;
 
 @Path("/")
-@Authenticated
+@RolesAllowed({"user"})
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 @RequiredArgsConstructor

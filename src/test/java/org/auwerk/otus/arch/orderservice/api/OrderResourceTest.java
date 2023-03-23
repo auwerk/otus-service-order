@@ -176,6 +176,6 @@ public class OrderResourceTest {
     }
 
     private String getAccessToken() {
-        return keycloakTestClient.getAccessToken("alice");
+        return keycloakTestClient.getAccessToken("bob");
     }
 }
