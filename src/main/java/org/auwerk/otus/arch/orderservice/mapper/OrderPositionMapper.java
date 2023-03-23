@@ -4,9 +4,10 @@ import java.util.List;
 
 import org.auwerk.otus.arch.orderservice.api.dto.OrderPositionDto;
 import org.auwerk.otus.arch.orderservice.domain.OrderPosition;
+import org.mapstruct.InjectionStrategy;
 import org.mapstruct.Mapper;
 
-@Mapper(componentModel = "cdi")
+@Mapper(componentModel = "cdi", injectionStrategy = InjectionStrategy.CONSTRUCTOR)
 public interface OrderPositionMapper {
 
     OrderPosition fromDto(OrderPositionDto dto);
