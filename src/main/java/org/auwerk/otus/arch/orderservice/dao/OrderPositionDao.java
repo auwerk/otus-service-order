@@ -10,7 +10,11 @@ import io.vertx.mutiny.pgclient.PgPool;
 
 public interface OrderPositionDao {
 
+    public Uni<OrderPosition> findById(PgPool pool, UUID id);
+
     public Uni<List<OrderPosition>> findAllByOrderId(PgPool pool, UUID orderId);
 
-    public Uni<Integer> insert(PgPool pool, UUID orderId, OrderPosition position);
+    public Uni<UUID> insert(PgPool pool, UUID orderId, OrderPosition position);
+
+    public Uni<Void> deleteById(PgPool pool, UUID id);
 }

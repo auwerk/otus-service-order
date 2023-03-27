@@ -7,7 +7,8 @@ import org.auwerk.otus.arch.orderservice.domain.Order;
 import org.mapstruct.InjectionStrategy;
 import org.mapstruct.Mapper;
 
-@Mapper(componentModel = "cdi", injectionStrategy = InjectionStrategy.CONSTRUCTOR, uses = OrderPositionMapper.class)
+@Mapper(componentModel = "cdi", injectionStrategy = InjectionStrategy.CONSTRUCTOR, uses = { OrderPositionMapper.class,
+        OrderStatusChangeMapper.class })
 public interface OrderMapper {
 
     OrderDto toDto(Order order);

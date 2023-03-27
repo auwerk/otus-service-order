@@ -9,17 +9,20 @@ import javax.enterprise.context.ApplicationScoped;
 
 import org.auwerk.otus.arch.orderservice.dao.OrderDao;
 import org.auwerk.otus.arch.orderservice.dao.OrderPositionDao;
+import org.auwerk.otus.arch.orderservice.dao.OrderStatusChangeDao;
 import org.auwerk.otus.arch.orderservice.domain.Order;
 import org.auwerk.otus.arch.orderservice.domain.OrderPosition;
 import org.auwerk.otus.arch.orderservice.domain.OrderStatus;
+import org.auwerk.otus.arch.orderservice.domain.OrderStatusChange;
 import org.auwerk.otus.arch.orderservice.exception.OrderAlreadyPlacedException;
+import org.auwerk.otus.arch.orderservice.exception.OrderCanNotBeCanceledException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCreatedByDifferentUserException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
+import org.auwerk.otus.arch.orderservice.exception.OrderPositionNotFoundException;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
 
 import io.quarkus.security.identity.SecurityIdentity;
 import io.smallrye.mutiny.Uni;
-import io.smallrye.mutiny.tuples.Tuple2;
 import io.vertx.mutiny.pgclient.PgPool;
 import lombok.RequiredArgsConstructor;
 
@@ -30,6 +33,7 @@ public class OrderServiceImpl implements OrderService {
     private final PgPool pool;
     private final OrderDao orderDao;
     private final OrderPositionDao positionDao;
+    private final OrderStatusChangeDao statusChangeDao;
     private final SecurityIdentity securityIdentity;
 
     @Override
@@ -38,28 +42,48 @@ public class OrderServiceImpl implements OrderService {
         return orderDao.findAllByUserName(pool, userName, pageSize, page).call(orders -> {
             return Uni.combine().all()
                     .unis(orders.stream()
-                            .map(order -> positionDao.findAllByOrderId(pool, order.getId())
-                                    .invoke(positions -> order.setPositions(positions)))
+                            .map(order -> Uni.combine().all().unis(
+                                    positionDao.findAllByOrderId(pool, order.getId())
+                                            .invoke(positions -> order.setPositions(positions)),
+                                    statusChangeDao.findAllByOrderId(pool, order.getId())
+                                            .invoke(statusChanges -> order.setStatusChanges(statusChanges)))
+                                    .discardItems())
                             .toList())
                     .discardItems();
         });
     }
 
     @Override
-    public Uni<Tuple2<UUID, LocalDateTime>> createOrder() {
+    public Uni<UUID> createOrder() {
         final var id = UUID.randomUUID();
         final var createdAt = LocalDateTime.now();
         final var userName = securityIdentity.getPrincipal().getName();
-        return orderDao.insert(pool, id, userName, createdAt).map(insertedRows -> {
-            if (insertedRows < 1) {
-                throw new RuntimeException("failed to insert order");
-            }
-            return Tuple2.of(id, createdAt);
-        });
+        return orderDao.insert(pool, id, userName, createdAt).replaceWith(id);
     }
 
     @Override
-    public Uni<Order> placeOrder(UUID orderId, List<OrderPosition> positions) {
+    public Uni<UUID> addOrderPosition(UUID orderId, String productCode, Integer quantity) {
+        final var position = OrderPosition.builder()
+                .productCode(productCode)
+                .quantity(quantity)
+                .build();
+
+        return pool.withTransaction(conn -> orderDao.findById(pool, orderId)
+                .flatMap(order -> positionDao.insert(pool, orderId, position))
+                .onFailure(NoSuchElementException.class)
+                .transform(ex -> new OrderNotFoundException(orderId)));
+    }
+
+    @Override
+    public Uni<Void> removeOrderPosition(UUID positionId) {
+        return positionDao.findById(pool, positionId)
+                .flatMap(position -> positionDao.deleteById(pool, positionId))
+                .onFailure(NoSuchElementException.class)
+                .transform(ex -> new OrderPositionNotFoundException(positionId));
+    }
+
+    @Override
+    public Uni<Void> placeOrder(UUID orderId) {
         return pool.withTransaction(conn -> orderDao.findById(pool, orderId)
                 .invoke(order -> {
                     if (!order.getUserName().equals(securityIdentity.getPrincipal().getName())) {
@@ -68,17 +92,40 @@ public class OrderServiceImpl implements OrderService {
                     if (OrderStatus.PLACED.equals(order.getStatus())) {
                         throw new OrderAlreadyPlacedException(order.getId());
                     }
-                    order.setStatus(OrderStatus.PLACED);
-                    order.setPlacedAt(LocalDateTime.now());
-                    order.setPositions(positions);
                 })
-                .call(order -> Uni.combine().all()
-                        .unis(order.getPositions().stream()
-                                .map(position -> positionDao.insert(pool, order.getId(), position))
-                                .toList())
-                        .discardItems())
-                .call(order -> orderDao.update(pool, order)))
+                .call(order -> Uni.combine().all().unis(
+                        insertOrderStatusChange(pool, order.getId(), OrderStatus.PLACED),
+                        orderDao.updateStatus(pool, order.getId(), OrderStatus.PLACED)).discardItems())
+                .replaceWithVoid()
                 .onFailure(NoSuchElementException.class)
-                .transform(ex -> new OrderNotFoundException(orderId));
+                .transform(ex -> new OrderNotFoundException(orderId)));
+    }
+
+    @Override
+    public Uni<Void> cancelOrder(UUID orderId) {
+        return pool.withTransaction(conn -> orderDao.findById(pool, orderId)
+                .invoke(order -> {
+                    if (!order.getUserName().equals(securityIdentity.getPrincipal().getName())) {
+                        throw new OrderCreatedByDifferentUserException(order.getId());
+                    }
+                    if (!OrderStatus.CREATED.equals(order.getStatus())) {
+                        throw new OrderCanNotBeCanceledException(order.getId());
+                    }
+                })
+                .call(order -> Uni.combine().all().unis(
+                        insertOrderStatusChange(pool, order.getId(), OrderStatus.CANCELED),
+                        orderDao.updateStatus(pool, order.getId(), OrderStatus.CANCELED)).discardItems())
+                .replaceWithVoid()
+                .onFailure(NoSuchElementException.class)
+                .transform(ex -> new OrderNotFoundException(orderId)));
+    }
+
+    private Uni<Void> insertOrderStatusChange(PgPool pool, UUID orderId, OrderStatus targetStatus) {
+        final var statusChange = OrderStatusChange.builder()
+                .status(targetStatus)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        return statusChangeDao.insert(pool, orderId, statusChange);
     }
 }

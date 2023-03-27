@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -16,57 +17,53 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import org.auwerk.otus.arch.orderservice.api.dto.CreateOrderResponseDto;
-import org.auwerk.otus.arch.orderservice.api.dto.PlaceOrderRequestDto;
 import org.auwerk.otus.arch.orderservice.exception.OrderAlreadyPlacedException;
+import org.auwerk.otus.arch.orderservice.exception.OrderCanNotBeCanceledException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCreatedByDifferentUserException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
 import org.auwerk.otus.arch.orderservice.mapper.OrderMapper;
-import org.auwerk.otus.arch.orderservice.mapper.OrderPositionMapper;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
 
 import io.smallrye.mutiny.Uni;
 import lombok.RequiredArgsConstructor;
 
 @Path("/")
-@RolesAllowed({"user"})
+@RolesAllowed({ "user" })
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 @RequiredArgsConstructor
 public class OrderResource {
 
     private final OrderMapper orderMapper;
-    private final OrderPositionMapper positionMapper;
     private final OrderService orderService;
 
     @GET
-    @Path("/{page}")
-    public Uni<Response> listOrders(@QueryParam("pageSize") int pageSize, @PathParam("page") int page) {
+    public Uni<Response> listOrders(@QueryParam("pageSize") int pageSize, @QueryParam("page") int page) {
         return orderService.findAllOrders(pageSize, page)
                 .map(orders -> Response.ok(orderMapper.toDtos(orders)).build())
                 .onFailure()
-                .recoverWithItem(Response.serverError().build());
+                .recoverWithItem(failure -> Response.serverError().entity(failure.getMessage()).build());
     }
 
     @POST
     public Uni<Response> createOrder() {
         return orderService.createOrder()
-                .map(result -> {
-                    final var dto = CreateOrderResponseDto.builder()
-                            .orderId(result.getItem1())
-                            .createdAt(result.getItem2())
+                .map(orderId -> {
+                    final var response = CreateOrderResponseDto.builder()
+                            .orderId(orderId)
                             .build();
-                    return Response.ok(dto).build();
+                    return Response.ok(response).build();
                 })
                 .onFailure()
-                .recoverWithItem(Response.serverError().build());
+                .recoverWithItem(failure -> Response.serverError().entity(failure.getMessage()).build());
     }
 
     @PUT
     @Path("/{orderId}")
-    public Uni<Response> placeOrder(@PathParam("orderId") UUID orderId, PlaceOrderRequestDto requestDto) {
+    public Uni<Response> placeOrder(@PathParam("orderId") UUID orderId) {
         return orderService
-                .placeOrder(orderId, positionMapper.fromDtos(requestDto.getPositions()))
-                .map(placedOrder -> Response.ok(orderMapper.toDto(placedOrder)).build())
+                .placeOrder(orderId)
+                .map(placedOrder -> Response.ok().build())
                 .onFailure(OrderNotFoundException.class)
                 .recoverWithItem(Response.status(Status.NOT_FOUND).build())
                 .onFailure(OrderCreatedByDifferentUserException.class)
@@ -74,6 +71,21 @@ public class OrderResource {
                 .onFailure(OrderAlreadyPlacedException.class)
                 .recoverWithItem(Response.status(Status.CONFLICT).build())
                 .onFailure()
-                .recoverWithItem(Response.serverError().build());
+                .recoverWithItem(failure -> Response.serverError().entity(failure.getMessage()).build());
+    }
+
+    @DELETE
+    @Path("/{orderId}")
+    public Uni<Response> cancelOrder(@PathParam("orderId") UUID orderId) {
+        return orderService.cancelOrder(orderId)
+                .replaceWith(Response.ok().build())
+                .onFailure(OrderNotFoundException.class)
+                .recoverWithItem(Response.status(Status.NOT_FOUND).build())
+                .onFailure(OrderCreatedByDifferentUserException.class)
+                .recoverWithItem(Response.status(Status.FORBIDDEN).build())
+                .onFailure(OrderCanNotBeCanceledException.class)
+                .recoverWithItem(Response.status(Status.CONFLICT).build())
+                .onFailure()
+                .recoverWithItem(failure -> Response.serverError().entity(failure.getMessage()).build());
     }
 }

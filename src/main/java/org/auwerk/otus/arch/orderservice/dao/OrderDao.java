@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.auwerk.otus.arch.orderservice.domain.Order;
+import org.auwerk.otus.arch.orderservice.domain.OrderStatus;
 
 import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.pgclient.PgPool;
@@ -15,8 +16,7 @@ public interface OrderDao {
 
     Uni<Order> findById(PgPool pool, UUID id);
 
-    Uni<Integer> insert(PgPool pool, UUID id, String userName, LocalDateTime createdAt);
+    Uni<Void> insert(PgPool pool, UUID id, String userName, LocalDateTime createdAt);
 
-    Uni<Integer> update(PgPool pool, Order order);
-
+    Uni<Void> updateStatus(PgPool pool, UUID id, OrderStatus status);
 }

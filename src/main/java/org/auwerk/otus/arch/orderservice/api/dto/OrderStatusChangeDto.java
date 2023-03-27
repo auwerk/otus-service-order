@@ -1,6 +1,8 @@
 package org.auwerk.otus.arch.orderservice.api.dto;
 
-import java.util.List;
+import java.time.LocalDateTime;
+
+import org.auwerk.otus.arch.orderservice.domain.OrderStatus;
 
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import lombok.AllArgsConstructor;
@@ -15,6 +17,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 @RegisterForReflection
-public class PlaceOrderRequestDto {
-    private List<OrderPositionDto> positions;
+public class OrderStatusChangeDto {
+    private OrderStatus status;
+    private LocalDateTime createdAt;
 }
