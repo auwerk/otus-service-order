@@ -17,6 +17,7 @@ import org.auwerk.otus.arch.orderservice.api.dto.AddOrderPositionRequestDto;
 import org.auwerk.otus.arch.orderservice.api.dto.AddOrderPositionResponseDto;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
 import org.auwerk.otus.arch.orderservice.exception.OrderPositionNotFoundException;
+import org.auwerk.otus.arch.orderservice.exception.ProductNotAvailableException;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
 
 import io.smallrye.mutiny.Uni;
@@ -42,7 +43,9 @@ public class OrderPositionResource {
                     return Response.ok(response).build();
                 })
                 .onFailure(OrderNotFoundException.class)
-                .recoverWithItem(Response.status(Status.NOT_FOUND).build())
+                .recoverWithItem(failure -> Response.status(Status.NOT_FOUND).entity(failure.getMessage()).build())
+                .onFailure(ProductNotAvailableException.class)
+                .recoverWithItem(failure -> Response.status(Status.CONFLICT).entity(failure.getMessage()).build())
                 .onFailure()
                 .recoverWithItem(failure -> Response.serverError().entity(failure.getMessage()).build());
     }
@@ -53,7 +56,7 @@ public class OrderPositionResource {
         return orderService.removeOrderPosition(positionId)
                 .map(v -> Response.ok().build())
                 .onFailure(OrderPositionNotFoundException.class)
-                .recoverWithItem(Response.status(Status.NOT_FOUND).build())
+                .recoverWithItem(failure -> Response.status(Status.NOT_FOUND).entity(failure.getMessage()).build())
                 .onFailure()
                 .recoverWithItem(failure -> Response.serverError().entity(failure.getMessage()).build());
     }

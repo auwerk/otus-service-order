@@ -19,7 +19,9 @@ import org.auwerk.otus.arch.orderservice.exception.OrderCanNotBeCanceledExceptio
 import org.auwerk.otus.arch.orderservice.exception.OrderCreatedByDifferentUserException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
 import org.auwerk.otus.arch.orderservice.exception.OrderPositionNotFoundException;
+import org.auwerk.otus.arch.orderservice.exception.ProductNotAvailableException;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
+import org.auwerk.otus.arch.orderservice.service.ProductService;
 
 import io.quarkus.security.identity.SecurityIdentity;
 import io.smallrye.mutiny.Uni;
@@ -35,6 +37,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderPositionDao positionDao;
     private final OrderStatusChangeDao statusChangeDao;
     private final SecurityIdentity securityIdentity;
+    private final ProductService productService;
 
     @Override
     public Uni<List<Order>> findAllOrders(int pageSize, int page) {
@@ -72,6 +75,12 @@ public class OrderServiceImpl implements OrderService {
                 .build();
 
         return pool.withTransaction(conn -> orderDao.findById(pool, orderId)
+                .call(() -> productService.checkProductAvailability(productCode)
+                        .invoke(available -> {
+                            if (!Boolean.TRUE.equals(available)) {
+                                throw new ProductNotAvailableException(productCode);
+                            }
+                        }))
                 .flatMap(order -> positionDao.insert(pool, orderId, position))
                 .onFailure(NoSuchElementException.class)
                 .transform(ex -> new OrderNotFoundException(orderId)));

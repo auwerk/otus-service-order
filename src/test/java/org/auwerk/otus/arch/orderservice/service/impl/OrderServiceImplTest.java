@@ -32,7 +32,9 @@ import org.auwerk.otus.arch.orderservice.exception.OrderCanNotBeCanceledExceptio
 import org.auwerk.otus.arch.orderservice.exception.OrderCreatedByDifferentUserException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
 import org.auwerk.otus.arch.orderservice.exception.OrderPositionNotFoundException;
+import org.auwerk.otus.arch.orderservice.exception.ProductNotAvailableException;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
+import org.auwerk.otus.arch.orderservice.service.ProductService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -56,8 +58,9 @@ public class OrderServiceImplTest {
     private final OrderPositionDao positionDao = mock(OrderPositionDao.class);
     private final OrderStatusChangeDao statusChangeDao = mock(OrderStatusChangeDao.class);
     private final SecurityIdentity securityIdentity = mock(SecurityIdentity.class);
+    private final ProductService productService = mock(ProductService.class);
     private final OrderService service = new OrderServiceImpl(pool, orderDao, positionDao, statusChangeDao,
-            securityIdentity);
+            securityIdentity, productService);
 
     @BeforeEach
     void mockTransaction() {
@@ -151,6 +154,8 @@ public class OrderServiceImplTest {
                 .build();
 
         // when
+        when(productService.checkProductAvailability(PRODUCT_CODE))
+                .thenReturn(Uni.createFrom().item(true));
         when(orderDao.findById(pool, ORDER_ID))
                 .thenReturn(Uni.createFrom().item(order));
         when(positionDao.insert(eq(pool), eq(ORDER_ID), any(OrderPosition.class)))
@@ -178,6 +183,31 @@ public class OrderServiceImplTest {
                 .assertFailedWith(OrderNotFoundException.class)
                 .getFailure();
         assertEquals(ORDER_ID, failure.getOrderId());
+
+        verify(positionDao, never())
+                .insert(eq(pool), eq(ORDER_ID), any(OrderPosition.class));
+    }
+
+    @Test
+    void addOrderPosition_productNotAvailable() {
+        // given
+        final var order = Order.builder()
+                .id(ORDER_ID)
+                .build();
+
+        // when
+        when(productService.checkProductAvailability(PRODUCT_CODE))
+                .thenReturn(Uni.createFrom().item(false));
+        when(orderDao.findById(pool, ORDER_ID))
+                .thenReturn(Uni.createFrom().item(order));
+        final var subscriber = service.addOrderPosition(ORDER_ID, PRODUCT_CODE, QUANTITY).subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
+
+        // then
+        final var failure = (ProductNotAvailableException) subscriber
+                .assertFailedWith(ProductNotAvailableException.class)
+                .getFailure();
+        assertEquals(PRODUCT_CODE, failure.getProductCode());
 
         verify(positionDao, never())
                 .insert(eq(pool), eq(ORDER_ID), any(OrderPosition.class));

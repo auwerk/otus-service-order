@@ -5,6 +5,7 @@ import java.util.UUID;
 import org.auwerk.otus.arch.orderservice.api.dto.AddOrderPositionRequestDto;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
 import org.auwerk.otus.arch.orderservice.exception.OrderPositionNotFoundException;
+import org.auwerk.otus.arch.orderservice.exception.ProductNotAvailableException;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,17 @@ public class OrderPositionResourceTest extends AbstractAuthenticatedResourceTest
                 .contentType(ContentType.JSON).body(buildAddRequest())
                 .post()
                 .then().statusCode(404);
+    }
+
+    @Test
+    void addOrderPosition_productNotAvailable() {
+        Mockito.when(orderService.addOrderPosition(ORDER_ID, PRODUCT_CODE, QUANTITY))
+                .thenReturn(Uni.createFrom().failure(new ProductNotAvailableException(PRODUCT_CODE)));
+
+        RestAssured.given().auth().oauth2(getAccessToken(USERNAME))
+                .contentType(ContentType.JSON).body(buildAddRequest())
+                .post()
+                .then().statusCode(409);
     }
 
     @Test
