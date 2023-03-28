@@ -23,7 +23,7 @@ import io.smallrye.mutiny.Uni;
 import lombok.RequiredArgsConstructor;
 
 @Path("/position")
-@RolesAllowed({ "user" })
+@RolesAllowed("${otus.role.customer}")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 @RequiredArgsConstructor

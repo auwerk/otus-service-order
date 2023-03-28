@@ -15,18 +15,16 @@ import org.mockito.Mockito;
 import io.quarkus.test.common.http.TestHTTPEndpoint;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.mockito.InjectMock;
-import io.quarkus.test.keycloak.client.KeycloakTestClient;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.smallrye.mutiny.Uni;
 
 @QuarkusTest
 @TestHTTPEndpoint(OrderResource.class)
-public class OrderResourceTest {
+public class OrderResourceTest extends AbstractAuthenticatedResourceTest {
 
+    private static final String USERNAME = "customer";
     private static final UUID ORDER_ID = UUID.randomUUID();
-
-    private final KeycloakTestClient keycloakTestClient = new KeycloakTestClient();
 
     @InjectMock
     OrderService orderService;
@@ -39,7 +37,7 @@ public class OrderResourceTest {
                         Order.builder().build())));
 
         RestAssured.given()
-                .auth().oauth2(getAccessToken())
+                .auth().oauth2(getAccessToken(USERNAME))
                 .param("pageSize", 10)
                 .param("page", 1)
                 .get()
@@ -54,7 +52,7 @@ public class OrderResourceTest {
 
         // then
         RestAssured.given()
-                .auth().oauth2(getAccessToken())
+                .auth().oauth2(getAccessToken(USERNAME))
                 .contentType(ContentType.JSON)
                 .post()
                 .then().statusCode(200)
@@ -70,7 +68,7 @@ public class OrderResourceTest {
 
         // then
         RestAssured.given()
-                .auth().oauth2(getAccessToken())
+                .auth().oauth2(getAccessToken(USERNAME))
                 .put("/" + ORDER_ID)
                 .then().statusCode(200);
     }
@@ -83,7 +81,7 @@ public class OrderResourceTest {
 
         // then
         RestAssured.given()
-                .auth().oauth2(getAccessToken())
+                .auth().oauth2(getAccessToken(USERNAME))
                 .put("/" + ORDER_ID)
                 .then().statusCode(404);
     }
@@ -96,7 +94,7 @@ public class OrderResourceTest {
 
         // then
         RestAssured.given()
-                .auth().oauth2(getAccessToken())
+                .auth().oauth2(getAccessToken(USERNAME))
                 .put("/" + ORDER_ID)
                 .then().statusCode(403);
     }
@@ -109,12 +107,8 @@ public class OrderResourceTest {
 
         // then
         RestAssured.given()
-                .auth().oauth2(getAccessToken())
+                .auth().oauth2(getAccessToken(USERNAME))
                 .put("/" + ORDER_ID)
                 .then().statusCode(409);
-    }
-
-    private String getAccessToken() {
-        return keycloakTestClient.getAccessToken("bob");
     }
 }

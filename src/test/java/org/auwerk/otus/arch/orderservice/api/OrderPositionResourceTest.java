@@ -13,21 +13,19 @@ import org.mockito.Mockito;
 import io.quarkus.test.common.http.TestHTTPEndpoint;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.mockito.InjectMock;
-import io.quarkus.test.keycloak.client.KeycloakTestClient;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.smallrye.mutiny.Uni;
 
 @QuarkusTest
 @TestHTTPEndpoint(OrderPositionResource.class)
-public class OrderPositionResourceTest {
+public class OrderPositionResourceTest extends AbstractAuthenticatedResourceTest {
 
+    private static final String USERNAME = "customer";
     private static final UUID ORDER_ID = UUID.randomUUID();
     private static final UUID POSITION_ID = UUID.randomUUID();
     private static final String PRODUCT_CODE = "PRODUCT1";
     private static final int QUANTITY = 16;
-
-    private final KeycloakTestClient keycloakTestClient = new KeycloakTestClient();
 
     @InjectMock
     OrderService orderService;
@@ -37,7 +35,7 @@ public class OrderPositionResourceTest {
         Mockito.when(orderService.addOrderPosition(ORDER_ID, PRODUCT_CODE, QUANTITY))
                 .thenReturn(Uni.createFrom().item(POSITION_ID));
 
-        RestAssured.given().auth().oauth2(getAccessToken())
+        RestAssured.given().auth().oauth2(getAccessToken(USERNAME))
                 .contentType(ContentType.JSON).body(buildAddRequest())
                 .post()
                 .then().statusCode(200)
@@ -50,7 +48,7 @@ public class OrderPositionResourceTest {
         Mockito.when(orderService.addOrderPosition(ORDER_ID, PRODUCT_CODE, QUANTITY))
                 .thenReturn(Uni.createFrom().failure(new OrderNotFoundException(ORDER_ID)));
 
-        RestAssured.given().auth().oauth2(getAccessToken())
+        RestAssured.given().auth().oauth2(getAccessToken(USERNAME))
                 .contentType(ContentType.JSON).body(buildAddRequest())
                 .post()
                 .then().statusCode(404);
@@ -61,7 +59,7 @@ public class OrderPositionResourceTest {
         Mockito.when(orderService.removeOrderPosition(POSITION_ID))
                 .thenReturn(Uni.createFrom().voidItem());
 
-        RestAssured.given().auth().oauth2(getAccessToken())
+        RestAssured.given().auth().oauth2(getAccessToken(USERNAME))
                 .delete("/" + POSITION_ID)
                 .then().statusCode(200);
     }
@@ -71,13 +69,9 @@ public class OrderPositionResourceTest {
         Mockito.when(orderService.removeOrderPosition(POSITION_ID))
                 .thenReturn(Uni.createFrom().failure(new OrderPositionNotFoundException(POSITION_ID)));
 
-        RestAssured.given().auth().oauth2(getAccessToken())
+        RestAssured.given().auth().oauth2(getAccessToken(USERNAME))
                 .delete("/" + POSITION_ID)
                 .then().statusCode(404);
-    }
-
-    private String getAccessToken() {
-        return keycloakTestClient.getAccessToken("bob");
     }
 
     private static AddOrderPositionRequestDto buildAddRequest() {
