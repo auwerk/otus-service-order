@@ -64,7 +64,10 @@ public class OrderServiceImpl implements OrderService {
         final var id = UUID.randomUUID();
         final var createdAt = LocalDateTime.now();
         final var userName = securityIdentity.getPrincipal().getName();
-        return orderDao.insert(pool, id, userName, createdAt).replaceWith(id);
+
+        return orderDao.insert(pool, id, userName, createdAt)
+                .chain(() -> insertOrderStatusChange(pool, id, OrderStatus.CREATED))
+                .replaceWith(id);
     }
 
     @Override

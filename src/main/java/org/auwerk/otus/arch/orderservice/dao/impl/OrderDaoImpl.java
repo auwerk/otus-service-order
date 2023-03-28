@@ -50,8 +50,8 @@ public class OrderDaoImpl implements OrderDao {
 
     @Override
     public Uni<Void> insert(PgPool pool, UUID id, String userName, LocalDateTime createdAt) {
-        return pool.preparedQuery("INSERT INTO orders(id, username, created_at) VALUES($1, $2, $3)")
-                .execute(Tuple.of(id, userName, createdAt))
+        return pool.preparedQuery("INSERT INTO orders(id, username, created_at, updated_at) VALUES($1, $2, $3, $4)")
+                .execute(Tuple.of(id, userName, createdAt, createdAt))
                 .flatMap(rowSet -> {
                     if (rowSet.rowCount() != 1) {
                         throw new DaoException("order insertion failed");

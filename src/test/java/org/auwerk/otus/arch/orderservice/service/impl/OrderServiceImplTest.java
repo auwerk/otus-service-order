@@ -27,6 +27,7 @@ import org.auwerk.otus.arch.orderservice.dao.OrderStatusChangeDao;
 import org.auwerk.otus.arch.orderservice.domain.Order;
 import org.auwerk.otus.arch.orderservice.domain.OrderPosition;
 import org.auwerk.otus.arch.orderservice.domain.OrderStatus;
+import org.auwerk.otus.arch.orderservice.domain.OrderStatusChange;
 import org.auwerk.otus.arch.orderservice.exception.OrderAlreadyPlacedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCanNotBeCanceledException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCreatedByDifferentUserException;
@@ -136,6 +137,8 @@ public class OrderServiceImplTest {
         // when
         when(orderDao.insert(eq(pool), any(UUID.class), anyString(), any(LocalDateTime.class)))
                 .thenReturn(Uni.createFrom().voidItem());
+        when(statusChangeDao.insert(eq(pool), any(UUID.class), any(OrderStatusChange.class)))
+                .thenReturn(Uni.createFrom().voidItem());
         final var subscriber = service.createOrder().subscribe()
                 .withSubscriber(UniAssertSubscriber.create());
 
@@ -144,6 +147,8 @@ public class OrderServiceImplTest {
 
         verify(orderDao, times(1))
                 .insert(eq(pool), any(UUID.class), eq(USERNAME), any(LocalDateTime.class));
+        verify(statusChangeDao, times(1))
+                .insert(eq(pool), any(UUID.class), argThat(sc -> OrderStatus.CREATED.equals(sc.getStatus())));
     }
 
     @Test
