@@ -5,6 +5,7 @@ import java.util.UUID;
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -34,11 +35,15 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class OrderResource {
 
+    protected static final String DEFAULT_PAGE_SIZE = "10";
+    protected static final String DEFAULT_PAGE = "1";
+
     private final OrderMapper orderMapper;
     private final OrderService orderService;
 
     @GET
-    public Uni<Response> listOrders(@QueryParam("pageSize") int pageSize, @QueryParam("page") int page) {
+    public Uni<Response> listOrders(@QueryParam("pageSize") @DefaultValue(DEFAULT_PAGE_SIZE) int pageSize,
+            @QueryParam("page") @DefaultValue(DEFAULT_PAGE) int page) {
         return orderService.findAllOrders(pageSize, page)
                 .map(orders -> Response.ok(orderMapper.toDtos(orders)).build())
                 .onFailure()

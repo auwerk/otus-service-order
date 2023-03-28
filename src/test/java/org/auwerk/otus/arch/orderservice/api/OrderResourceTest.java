@@ -45,6 +45,23 @@ public class OrderResourceTest extends AbstractAuthenticatedResourceTest {
     }
 
     @Test
+    void listOrders_defaultPageParams() {
+        Mockito.when(orderService.findAllOrders(10, 1))
+                .thenReturn(Uni.createFrom().item(List.of(
+                        Order.builder().build(),
+                        Order.builder().build())));
+
+        RestAssured.given()
+                .auth().oauth2(getAccessToken(USERNAME))
+                .get()
+                .then().statusCode(200);
+
+        Mockito.verify(orderService, Mockito.times(1))
+                .findAllOrders(Integer.valueOf(OrderResource.DEFAULT_PAGE_SIZE),
+                        Integer.valueOf(OrderResource.DEFAULT_PAGE));
+    }
+
+    @Test
     void createOrder_success() {
         // when
         Mockito.when(orderService.createOrder())
