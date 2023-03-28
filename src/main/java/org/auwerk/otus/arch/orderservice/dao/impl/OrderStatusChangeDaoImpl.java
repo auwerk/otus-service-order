@@ -50,7 +50,7 @@ public class OrderStatusChangeDaoImpl implements OrderStatusChangeDao {
 
     private static OrderStatusChange mapRow(Row row) {
         return OrderStatusChange.builder()
-                .status(OrderStatus.valueOf(row.getString("product_code")))
+                .status(OrderStatus.valueOf(row.getString("status")))
                 .createdAt(row.getLocalDateTime("created_at"))
                 .build();
     }
