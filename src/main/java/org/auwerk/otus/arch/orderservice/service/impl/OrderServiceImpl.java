@@ -1,7 +1,6 @@
 package org.auwerk.otus.arch.orderservice.service.impl;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -42,18 +41,17 @@ public class OrderServiceImpl implements OrderService {
         final var userName = securityIdentity.getPrincipal().getName();
         return orderDao.findAllByUserName(pool, userName, pageSize, page).call(orders -> {
             if (orders.isEmpty()) {
-                return Uni.createFrom().item(Collections.emptyList());
+                return Uni.createFrom().item(List.of());
             } else {
-                return Uni.combine().all()
-                        .unis(orders.stream()
-                                .map(order -> Uni.combine().all().unis(
-                                        positionDao.findAllByOrderId(pool, order.getId())
-                                                .invoke(positions -> order.setPositions(positions)),
-                                        statusChangeDao.findAllByOrderId(pool, order.getId())
-                                                .invoke(statusChanges -> order.setStatusChanges(statusChanges)))
-                                        .discardItems())
-                                .toList())
-                        .discardItems();
+                final var orderUnis = orders.stream()
+                        .map(order -> Uni.combine().all().unis(
+                                positionDao.findAllByOrderId(pool, order.getId())
+                                        .invoke(positions -> order.setPositions(positions)),
+                                statusChangeDao.findAllByOrderId(pool, order.getId())
+                                        .invoke(statusChanges -> order.setStatusChanges(statusChanges)))
+                                .discardItems())
+                        .toList();
+                return Uni.combine().all().unis(orderUnis).discardItems();
             }
         });
     }

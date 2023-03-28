@@ -12,5 +12,4 @@ public interface OrderStatusChangeMapper {
     OrderStatusChangeDto toDto(OrderStatusChange statusChange);
 
     List<OrderStatusChangeDto> toDtos(List<OrderStatusChange> statusChanges);
-    
 }
