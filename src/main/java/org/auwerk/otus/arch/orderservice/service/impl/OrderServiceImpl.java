@@ -1,6 +1,7 @@
 package org.auwerk.otus.arch.orderservice.service.impl;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -40,16 +41,20 @@ public class OrderServiceImpl implements OrderService {
     public Uni<List<Order>> findAllOrders(int pageSize, int page) {
         final var userName = securityIdentity.getPrincipal().getName();
         return orderDao.findAllByUserName(pool, userName, pageSize, page).call(orders -> {
-            return Uni.combine().all()
-                    .unis(orders.stream()
-                            .map(order -> Uni.combine().all().unis(
-                                    positionDao.findAllByOrderId(pool, order.getId())
-                                            .invoke(positions -> order.setPositions(positions)),
-                                    statusChangeDao.findAllByOrderId(pool, order.getId())
-                                            .invoke(statusChanges -> order.setStatusChanges(statusChanges)))
-                                    .discardItems())
-                            .toList())
-                    .discardItems();
+            if (orders.isEmpty()) {
+                return Uni.createFrom().item(Collections.emptyList());
+            } else {
+                return Uni.combine().all()
+                        .unis(orders.stream()
+                                .map(order -> Uni.combine().all().unis(
+                                        positionDao.findAllByOrderId(pool, order.getId())
+                                                .invoke(positions -> order.setPositions(positions)),
+                                        statusChangeDao.findAllByOrderId(pool, order.getId())
+                                                .invoke(statusChanges -> order.setStatusChanges(statusChanges)))
+                                        .discardItems())
+                                .toList())
+                        .discardItems();
+            }
         });
     }
 

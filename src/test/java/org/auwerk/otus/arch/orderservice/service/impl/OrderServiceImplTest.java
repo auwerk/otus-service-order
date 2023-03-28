@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 
 import java.security.Principal;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -75,7 +76,7 @@ public class OrderServiceImplTest {
     }
 
     @Test
-    void listOrders_success() {
+    void findAllOrders_success() {
         // given
         final var pageSize = 10;
         final var page = 1;
@@ -99,6 +100,31 @@ public class OrderServiceImplTest {
         verify(positionDao, times(3))
                 .findAllByOrderId(eq(pool), any(UUID.class));
         verify(statusChangeDao, times(3))
+                .findAllByOrderId(eq(pool), any(UUID.class));
+    }
+
+    @Test
+    void findAllOrders_emptyResult() {
+        // given
+        final var pageSize = 10;
+        final var page = 1;
+
+        // when
+        when(orderDao.findAllByUserName(eq(pool), anyString(), anyInt(), anyInt()))
+                .thenReturn(Uni.createFrom().item(Collections.emptyList()));
+        final var subscriber = service.findAllOrders(pageSize, page).subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
+
+        // then
+        final var orders = subscriber.assertCompleted().getItem();
+        assertNotNull(orders);
+        assertEquals(0, orders.size());
+
+        verify(orderDao, times(1))
+                .findAllByUserName(eq(pool), eq(USERNAME), eq(pageSize), eq(page));
+        verify(positionDao, never())
+                .findAllByOrderId(eq(pool), any(UUID.class));
+        verify(statusChangeDao, never())
                 .findAllByOrderId(eq(pool), any(UUID.class));
     }
 
