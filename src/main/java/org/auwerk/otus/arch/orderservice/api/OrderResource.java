@@ -43,10 +43,23 @@ public class OrderResource {
     private final OrderService orderService;
 
     @GET
-    public Uni<Response> listOrders(@QueryParam("pageSize") @DefaultValue(DEFAULT_PAGE_SIZE) int pageSize,
+    public Uni<Response> getAllOrders(@QueryParam("pageSize") @DefaultValue(DEFAULT_PAGE_SIZE) int pageSize,
             @QueryParam("page") @DefaultValue(DEFAULT_PAGE) int page) {
-        return orderService.findAllOrders(pageSize, page)
+        return orderService.getAllOrders(pageSize, page)
                 .map(orders -> Response.ok(orderMapper.toDtos(orders)).build())
+                .onFailure()
+                .recoverWithItem(failure -> Response.serverError().entity(failure.getMessage()).build());
+    }
+
+    @GET
+    @Path("/{orderId}")
+    public Uni<Response> getOrderById(@PathParam("orderId") UUID orderId) {
+        return orderService.getOrderById(orderId)
+                .map(order -> Response.ok(orderMapper.toDto(order)).build())
+                .onFailure(OrderNotFoundException.class)
+                .recoverWithItem(failure -> Response.status(Status.NOT_FOUND).entity(failure.getMessage()).build())
+                .onFailure(OrderCreatedByDifferentUserException.class)
+                .recoverWithItem(failure -> Response.status(Status.FORBIDDEN).entity(failure.getMessage()).build())
                 .onFailure()
                 .recoverWithItem(failure -> Response.serverError().entity(failure.getMessage()).build());
     }

@@ -81,7 +81,7 @@ public class OrderServiceImplTest {
     }
 
     @Test
-    void findAllOrders_success() {
+    void getAllOrders_success() {
         // given
         final var pageSize = 10;
         final var page = 1;
@@ -92,7 +92,7 @@ public class OrderServiceImplTest {
                         Order.builder().id(UUID.randomUUID()).build(),
                         Order.builder().id(UUID.randomUUID()).build(),
                         Order.builder().id(UUID.randomUUID()).build())));
-        final var subscriber = service.findAllOrders(pageSize, page).subscribe()
+        final var subscriber = service.getAllOrders(pageSize, page).subscribe()
                 .withSubscriber(UniAssertSubscriber.create());
 
         // then
@@ -109,7 +109,7 @@ public class OrderServiceImplTest {
     }
 
     @Test
-    void findAllOrders_emptyResult() {
+    void getAllOrders_emptyResult() {
         // given
         final var pageSize = 10;
         final var page = 1;
@@ -117,7 +117,7 @@ public class OrderServiceImplTest {
         // when
         when(orderDao.findAllByUserName(eq(pool), anyString(), anyInt(), anyInt()))
                 .thenReturn(Uni.createFrom().item(Collections.emptyList()));
-        final var subscriber = service.findAllOrders(pageSize, page).subscribe()
+        final var subscriber = service.getAllOrders(pageSize, page).subscribe()
                 .withSubscriber(UniAssertSubscriber.create());
 
         // then
@@ -131,6 +131,55 @@ public class OrderServiceImplTest {
                 .findAllByOrderId(eq(pool), any(UUID.class));
         verify(statusChangeDao, never())
                 .findAllByOrderId(eq(pool), any(UUID.class));
+    }
+
+    @Test
+    void getOrderById_success() {
+        // given
+        final var order = buildOrder(OrderStatus.CREATED);
+
+        // when
+        when(orderDao.findById(pool, ORDER_ID))
+                .thenReturn(Uni.createFrom().item(order));
+        final var subscriber = service.getOrderById(ORDER_ID).subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
+
+        // then
+        subscriber.assertItem(order);
+    }
+
+    @Test
+    void getOrderById_orderNotFound() {
+        // when
+        when(orderDao.findById(pool, ORDER_ID))
+                .thenReturn(Uni.createFrom().failure(new NoSuchElementException()));
+        final var subscriber = service.getOrderById(ORDER_ID).subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
+
+        // then
+        final var failure = (OrderNotFoundException) subscriber
+                .assertFailedWith(OrderNotFoundException.class)
+                .getFailure();
+        assertEquals(ORDER_ID, failure.getOrderId());
+    }
+
+    @Test
+    void getOrderById_createdByDifferentUser() {
+        // given
+        final var order = buildOrder(OrderStatus.CREATED);
+        order.setUserName("other-user");
+
+        // when
+        when(orderDao.findById(pool, ORDER_ID))
+                .thenReturn(Uni.createFrom().item(order));
+        final var subscriber = service.getOrderById(ORDER_ID).subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
+
+        // then
+        final var failure = (OrderCreatedByDifferentUserException) subscriber
+                .assertFailedWith(OrderCreatedByDifferentUserException.class)
+                .getFailure();
+        assertEquals(ORDER_ID, failure.getOrderId());
     }
 
     @Test

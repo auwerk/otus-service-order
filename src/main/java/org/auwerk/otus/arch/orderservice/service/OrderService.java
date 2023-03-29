@@ -9,7 +9,9 @@ import io.smallrye.mutiny.Uni;
 
 public interface OrderService {
 
-    Uni<List<Order>> findAllOrders(int pageSize, int page);
+    Uni<List<Order>> getAllOrders(int pageSize, int page);
+
+    Uni<Order> getOrderById(UUID id);
 
     /**
      * Создание нового заказа

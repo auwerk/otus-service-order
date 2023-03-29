@@ -39,7 +39,7 @@ public class OrderServiceImpl implements OrderService {
     private final ProductService productService;
 
     @Override
-    public Uni<List<Order>> findAllOrders(int pageSize, int page) {
+    public Uni<List<Order>> getAllOrders(int pageSize, int page) {
         final var userName = securityIdentity.getPrincipal().getName();
         return orderDao.findAllByUserName(pool, userName, pageSize, page).call(orders -> {
             if (orders.isEmpty()) {
@@ -56,6 +56,18 @@ public class OrderServiceImpl implements OrderService {
                 return Uni.combine().all().unis(orderUnis).discardItems();
             }
         });
+    }
+
+    @Override
+    public Uni<Order> getOrderById(UUID id) {
+        return orderDao.findById(pool, id)
+                .invoke(order -> {
+                    if (!securityIdentity.getPrincipal().getName().equals(order.getUserName())) {
+                        throw new OrderCreatedByDifferentUserException(order.getId());
+                    }
+                })
+                .onFailure(NoSuchElementException.class)
+                .transform(ex -> new OrderNotFoundException(id));
     }
 
     @Override
