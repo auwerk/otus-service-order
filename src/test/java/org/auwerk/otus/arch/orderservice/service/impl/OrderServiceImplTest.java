@@ -13,6 +13,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.math.BigDecimal;
 import java.security.Principal;
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -159,8 +160,8 @@ public class OrderServiceImplTest {
                 .build();
 
         // when
-        when(productService.checkProductAvailability(PRODUCT_CODE))
-                .thenReturn(Uni.createFrom().item(true));
+        when(productService.getProductPrice(PRODUCT_CODE))
+                .thenReturn(Uni.createFrom().item(BigDecimal.TEN));
         when(orderDao.findById(pool, ORDER_ID))
                 .thenReturn(Uni.createFrom().item(order));
         when(positionDao.insert(eq(pool), eq(ORDER_ID), any(OrderPosition.class)))
@@ -201,8 +202,8 @@ public class OrderServiceImplTest {
                 .build();
 
         // when
-        when(productService.checkProductAvailability(PRODUCT_CODE))
-                .thenReturn(Uni.createFrom().item(false));
+        when(productService.getProductPrice(PRODUCT_CODE))
+                .thenReturn(Uni.createFrom().failure(new ProductNotAvailableException(PRODUCT_CODE)));
         when(orderDao.findById(pool, ORDER_ID))
                 .thenReturn(Uni.createFrom().item(order));
         final var subscriber = service.addOrderPosition(ORDER_ID, PRODUCT_CODE, QUANTITY).subscribe()

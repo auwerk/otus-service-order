@@ -19,7 +19,6 @@ import org.auwerk.otus.arch.orderservice.exception.OrderCanNotBeCanceledExceptio
 import org.auwerk.otus.arch.orderservice.exception.OrderCreatedByDifferentUserException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
 import org.auwerk.otus.arch.orderservice.exception.OrderPositionNotFoundException;
-import org.auwerk.otus.arch.orderservice.exception.ProductNotAvailableException;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
 import org.auwerk.otus.arch.orderservice.service.ProductService;
 
@@ -78,12 +77,7 @@ public class OrderServiceImpl implements OrderService {
                 .build();
 
         return pool.withTransaction(conn -> orderDao.findById(pool, orderId)
-                .call(() -> productService.checkProductAvailability(productCode)
-                        .invoke(available -> {
-                            if (!Boolean.TRUE.equals(available)) {
-                                throw new ProductNotAvailableException(productCode);
-                            }
-                        }))
+                .call(() -> productService.getProductPrice(productCode))
                 .flatMap(order -> positionDao.insert(pool, orderId, position))
                 .onFailure(NoSuchElementException.class)
                 .transform(ex -> new OrderNotFoundException(orderId)));

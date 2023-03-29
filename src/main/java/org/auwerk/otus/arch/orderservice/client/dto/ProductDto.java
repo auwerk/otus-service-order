@@ -1,5 +1,7 @@
 package org.auwerk.otus.arch.orderservice.client.dto;
 
+import java.math.BigDecimal;
+
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -13,4 +15,5 @@ import lombok.Setter;
 @RegisterForReflection
 public class ProductDto {
     private Boolean available;
+    private BigDecimal price;
 }

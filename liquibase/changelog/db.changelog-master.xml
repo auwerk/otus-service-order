@@ -74,4 +74,10 @@
         <renameColumn tableName="orders" oldColumnName="placed_at" newColumnName="updated_at" />
     </changeSet>
 
+    <changeSet id="06-add-position-price-column" author="auwerk">
+        <addColumn tableName="order_positions">
+            <column name="price" type="decimal" remarks="Fixed product price for the position" />
+        </addColumn>
+    </changeSet>
+
 </databaseChangeLog>

@@ -74,8 +74,10 @@ public class OrderPositionDaoImpl implements OrderPositionDao {
 
     private static OrderPosition mapRow(Row row) {
         return OrderPosition.builder()
+                .id(row.getUUID("id"))
                 .productCode(row.getString("product_code"))
                 .quantity(row.getInteger("quantity"))
+                .price(row.getBigDecimal("price"))
                 .build();
     }
 }

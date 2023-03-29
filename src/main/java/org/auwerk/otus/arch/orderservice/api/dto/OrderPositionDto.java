@@ -1,5 +1,7 @@
 package org.auwerk.otus.arch.orderservice.api.dto;
 
+import java.util.UUID;
+
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,6 +16,7 @@ import lombok.Setter;
 @Builder
 @RegisterForReflection
 public class OrderPositionDto {
+    private UUID id;
     private String productCode;
     private Integer quantity;
 }
