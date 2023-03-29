@@ -1,5 +1,6 @@
 package org.auwerk.otus.arch.orderservice.api.dto;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 import io.quarkus.runtime.annotations.RegisterForReflection;
@@ -19,4 +20,5 @@ public class OrderPositionDto {
     private UUID id;
     private String productCode;
     private Integer quantity;
+    private BigDecimal price;
 }

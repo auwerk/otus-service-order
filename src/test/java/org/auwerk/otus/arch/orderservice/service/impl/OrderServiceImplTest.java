@@ -158,10 +158,11 @@ public class OrderServiceImplTest {
         final var order = Order.builder()
                 .id(ORDER_ID)
                 .build();
+        final var productPrice = BigDecimal.TEN;
 
         // when
         when(productService.getProductPrice(PRODUCT_CODE))
-                .thenReturn(Uni.createFrom().item(BigDecimal.TEN));
+                .thenReturn(Uni.createFrom().item(productPrice));
         when(orderDao.findById(pool, ORDER_ID))
                 .thenReturn(Uni.createFrom().item(order));
         when(positionDao.insert(eq(pool), eq(ORDER_ID), any(OrderPosition.class)))
@@ -173,7 +174,7 @@ public class OrderServiceImplTest {
         subscriber.assertItem(POSITION_ID);
         verify(positionDao, times(1))
                 .insert(eq(pool), eq(ORDER_ID), argThat(position -> PRODUCT_CODE.equals(position.getProductCode())
-                        && QUANTITY == position.getQuantity()));
+                        && QUANTITY == position.getQuantity() && productPrice.equals(position.getPrice())));
     }
 
     @Test

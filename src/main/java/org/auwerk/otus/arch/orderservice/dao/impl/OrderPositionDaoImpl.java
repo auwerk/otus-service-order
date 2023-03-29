@@ -50,8 +50,9 @@ public class OrderPositionDaoImpl implements OrderPositionDao {
     public Uni<UUID> insert(PgPool pool, UUID orderId, OrderPosition position) {
         return pool
                 .preparedQuery(
-                        "INSERT INTO order_positions(id, order_id, product_code, quantity) VALUES($1, $2, $3, $4) RETURNING id")
-                .execute(Tuple.of(UUID.randomUUID(), orderId, position.getProductCode(), position.getQuantity()))
+                        "INSERT INTO order_positions(id, order_id, product_code, quantity, price) VALUES($1, $2, $3, $4, $5) RETURNING id")
+                .execute(Tuple.of(UUID.randomUUID(), orderId, position.getProductCode(), position.getQuantity(),
+                        position.getPrice()))
                 .map(rowSet -> {
                     if (rowSet.rowCount() != 1) {
                         throw new DaoException("order position insertion failed");

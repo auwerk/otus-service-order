@@ -77,7 +77,8 @@ public class OrderServiceImpl implements OrderService {
                 .build();
 
         return pool.withTransaction(conn -> orderDao.findById(pool, orderId)
-                .call(() -> productService.getProductPrice(productCode))
+                .call(() -> productService.getProductPrice(productCode)
+                        .invoke(price -> position.setPrice(price)))
                 .flatMap(order -> positionDao.insert(pool, orderId, position))
                 .onFailure(NoSuchElementException.class)
                 .transform(ex -> new OrderNotFoundException(orderId)));
