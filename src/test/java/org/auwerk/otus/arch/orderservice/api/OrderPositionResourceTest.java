@@ -36,11 +36,13 @@ public class OrderPositionResourceTest extends AbstractAuthenticatedResourceTest
         Mockito.when(orderService.addOrderPosition(ORDER_ID, PRODUCT_CODE, QUANTITY))
                 .thenReturn(Uni.createFrom().item(POSITION_ID));
 
-        RestAssured.given().auth().oauth2(getAccessToken(USERNAME))
-                .contentType(ContentType.JSON).body(buildAddRequest())
+        RestAssured.given()
+                .auth().oauth2(getAccessToken(USERNAME))
+                .contentType(ContentType.JSON)
+                .body(buildAddRequest())
                 .post()
-                .then().statusCode(200)
-                .assertThat()
+                .then()
+                .statusCode(200)
                 .body("positionId", Matchers.equalTo(POSITION_ID.toString()));
     }
 
@@ -49,10 +51,14 @@ public class OrderPositionResourceTest extends AbstractAuthenticatedResourceTest
         Mockito.when(orderService.addOrderPosition(ORDER_ID, PRODUCT_CODE, QUANTITY))
                 .thenReturn(Uni.createFrom().failure(new OrderNotFoundException(ORDER_ID)));
 
-        RestAssured.given().auth().oauth2(getAccessToken(USERNAME))
-                .contentType(ContentType.JSON).body(buildAddRequest())
+        RestAssured.given()
+                .auth().oauth2(getAccessToken(USERNAME))
+                .contentType(ContentType.JSON)
+                .body(buildAddRequest())
                 .post()
-                .then().statusCode(404);
+                .then()
+                .statusCode(404)
+                .body(Matchers.equalTo("order not found, id=" + ORDER_ID));
     }
 
     @Test
@@ -60,10 +66,14 @@ public class OrderPositionResourceTest extends AbstractAuthenticatedResourceTest
         Mockito.when(orderService.addOrderPosition(ORDER_ID, PRODUCT_CODE, QUANTITY))
                 .thenReturn(Uni.createFrom().failure(new ProductNotAvailableException(PRODUCT_CODE)));
 
-        RestAssured.given().auth().oauth2(getAccessToken(USERNAME))
-                .contentType(ContentType.JSON).body(buildAddRequest())
+        RestAssured.given()
+                .auth().oauth2(getAccessToken(USERNAME))
+                .contentType(ContentType.JSON)
+                .body(buildAddRequest())
                 .post()
-                .then().statusCode(409);
+                .then()
+                .statusCode(409)
+                .body(Matchers.equalTo("product not available, code=" + PRODUCT_CODE));
     }
 
     @Test
@@ -71,9 +81,11 @@ public class OrderPositionResourceTest extends AbstractAuthenticatedResourceTest
         Mockito.when(orderService.removeOrderPosition(POSITION_ID))
                 .thenReturn(Uni.createFrom().voidItem());
 
-        RestAssured.given().auth().oauth2(getAccessToken(USERNAME))
-                .delete("/" + POSITION_ID)
-                .then().statusCode(200);
+        RestAssured.given()
+                .auth().oauth2(getAccessToken(USERNAME))
+                .delete("/{positionId}", POSITION_ID)
+                .then()
+                .statusCode(200);
     }
 
     @Test
@@ -81,9 +93,12 @@ public class OrderPositionResourceTest extends AbstractAuthenticatedResourceTest
         Mockito.when(orderService.removeOrderPosition(POSITION_ID))
                 .thenReturn(Uni.createFrom().failure(new OrderPositionNotFoundException(POSITION_ID)));
 
-        RestAssured.given().auth().oauth2(getAccessToken(USERNAME))
-                .delete("/" + POSITION_ID)
-                .then().statusCode(404);
+        RestAssured.given()
+                .auth().oauth2(getAccessToken(USERNAME))
+                .delete("/{positionId}", POSITION_ID)
+                .then()
+                .statusCode(404)
+                .body(Matchers.equalTo("order position not found, id=" + POSITION_ID));
     }
 
     private static AddOrderPositionRequestDto buildAddRequest() {

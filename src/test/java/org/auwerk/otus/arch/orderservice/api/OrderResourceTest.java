@@ -7,6 +7,7 @@ import org.auwerk.otus.arch.orderservice.domain.Order;
 import org.auwerk.otus.arch.orderservice.exception.OrderAlreadyPlacedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCreatedByDifferentUserException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
+import org.auwerk.otus.arch.orderservice.exception.ProductNotAvailableException;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
@@ -41,7 +42,8 @@ public class OrderResourceTest extends AbstractAuthenticatedResourceTest {
                 .param("pageSize", 10)
                 .param("page", 1)
                 .get()
-                .then().statusCode(200);
+                .then()
+                .statusCode(200);
     }
 
     @Test
@@ -54,7 +56,8 @@ public class OrderResourceTest extends AbstractAuthenticatedResourceTest {
         RestAssured.given()
                 .auth().oauth2(getAccessToken(USERNAME))
                 .get()
-                .then().statusCode(200);
+                .then()
+                .statusCode(200);
 
         Mockito.verify(orderService, Mockito.times(1))
                 .findAllOrders(Integer.valueOf(OrderResource.DEFAULT_PAGE_SIZE),
@@ -72,8 +75,8 @@ public class OrderResourceTest extends AbstractAuthenticatedResourceTest {
                 .auth().oauth2(getAccessToken(USERNAME))
                 .contentType(ContentType.JSON)
                 .post()
-                .then().statusCode(200)
-                .assertThat()
+                .then()
+                .statusCode(200)
                 .body("orderId", Matchers.equalTo(ORDER_ID.toString()));
     }
 
@@ -86,8 +89,9 @@ public class OrderResourceTest extends AbstractAuthenticatedResourceTest {
         // then
         RestAssured.given()
                 .auth().oauth2(getAccessToken(USERNAME))
-                .put("/" + ORDER_ID)
-                .then().statusCode(200);
+                .put("/{orderId}", ORDER_ID)
+                .then()
+                .statusCode(200);
     }
 
     @Test
@@ -99,8 +103,10 @@ public class OrderResourceTest extends AbstractAuthenticatedResourceTest {
         // then
         RestAssured.given()
                 .auth().oauth2(getAccessToken(USERNAME))
-                .put("/" + ORDER_ID)
-                .then().statusCode(404);
+                .put("/{orderId}", ORDER_ID)
+                .then()
+                .statusCode(404)
+                .body(Matchers.equalTo("order not found, id=" + ORDER_ID));
     }
 
     @Test
@@ -112,8 +118,10 @@ public class OrderResourceTest extends AbstractAuthenticatedResourceTest {
         // then
         RestAssured.given()
                 .auth().oauth2(getAccessToken(USERNAME))
-                .put("/" + ORDER_ID)
-                .then().statusCode(403);
+                .put("/{orderId}", ORDER_ID)
+                .then()
+                .statusCode(403)
+                .body(Matchers.equalTo("order was created by different user, id=" + ORDER_ID));
     }
 
     @Test
@@ -125,7 +133,27 @@ public class OrderResourceTest extends AbstractAuthenticatedResourceTest {
         // then
         RestAssured.given()
                 .auth().oauth2(getAccessToken(USERNAME))
-                .put("/" + ORDER_ID)
-                .then().statusCode(409);
+                .put("/{orderId}", ORDER_ID)
+                .then()
+                .statusCode(409)
+                .body(Matchers.equalTo("order has been already placed, id=" + ORDER_ID));
+    }
+
+    @Test
+    void placeOrder_productNotAvailable() {
+        // given
+        final var productCode = "PRODUCT1";
+
+        // when
+        Mockito.when(orderService.placeOrder(ORDER_ID))
+                .thenReturn(Uni.createFrom().failure(new ProductNotAvailableException(productCode)));
+
+        // then
+        RestAssured.given()
+                .auth().oauth2(getAccessToken(USERNAME))
+                .put("/{orderId}", ORDER_ID)
+                .then()
+                .statusCode(409)
+                .body(Matchers.equalTo("product not available, code=" + productCode));
     }
 }

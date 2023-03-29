@@ -22,6 +22,7 @@ import org.auwerk.otus.arch.orderservice.exception.OrderAlreadyPlacedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCanNotBeCanceledException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCreatedByDifferentUserException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
+import org.auwerk.otus.arch.orderservice.exception.ProductNotAvailableException;
 import org.auwerk.otus.arch.orderservice.mapper.OrderMapper;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
 
@@ -70,11 +71,13 @@ public class OrderResource {
                 .placeOrder(orderId)
                 .map(placedOrder -> Response.ok().build())
                 .onFailure(OrderNotFoundException.class)
-                .recoverWithItem(Response.status(Status.NOT_FOUND).build())
+                .recoverWithItem(failure -> Response.status(Status.NOT_FOUND).entity(failure.getMessage()).build())
                 .onFailure(OrderCreatedByDifferentUserException.class)
-                .recoverWithItem(Response.status(Status.FORBIDDEN).build())
+                .recoverWithItem(failure -> Response.status(Status.FORBIDDEN).entity(failure.getMessage()).build())
                 .onFailure(OrderAlreadyPlacedException.class)
-                .recoverWithItem(Response.status(Status.CONFLICT).build())
+                .recoverWithItem(failure -> Response.status(Status.CONFLICT).entity(failure.getMessage()).build())
+                .onFailure(ProductNotAvailableException.class)
+                .recoverWithItem(failure -> Response.status(Status.CONFLICT).entity(failure.getMessage()).build())
                 .onFailure()
                 .recoverWithItem(failure -> Response.serverError().entity(failure.getMessage()).build());
     }
@@ -85,11 +88,11 @@ public class OrderResource {
         return orderService.cancelOrder(orderId)
                 .replaceWith(Response.ok().build())
                 .onFailure(OrderNotFoundException.class)
-                .recoverWithItem(Response.status(Status.NOT_FOUND).build())
+                .recoverWithItem(failure -> Response.status(Status.NOT_FOUND).entity(failure.getMessage()).build())
                 .onFailure(OrderCreatedByDifferentUserException.class)
-                .recoverWithItem(Response.status(Status.FORBIDDEN).build())
+                .recoverWithItem(failure -> Response.status(Status.FORBIDDEN).entity(failure.getMessage()).build())
                 .onFailure(OrderCanNotBeCanceledException.class)
-                .recoverWithItem(Response.status(Status.CONFLICT).build())
+                .recoverWithItem(failure -> Response.status(Status.CONFLICT).entity(failure.getMessage()).build())
                 .onFailure()
                 .recoverWithItem(failure -> Response.serverError().entity(failure.getMessage()).build());
     }
