@@ -10,6 +10,7 @@ import lombok.Data;
 @Builder
 public class OrderPosition {
     private UUID id;
+    private UUID orderId;
     private String productCode;
     private Integer quantity;
     private BigDecimal price;

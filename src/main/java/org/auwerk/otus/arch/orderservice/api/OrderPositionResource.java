@@ -15,6 +15,7 @@ import javax.ws.rs.core.Response.Status;
 
 import org.auwerk.otus.arch.orderservice.api.dto.AddOrderPositionRequestDto;
 import org.auwerk.otus.arch.orderservice.api.dto.AddOrderPositionResponseDto;
+import org.auwerk.otus.arch.orderservice.exception.OrderCanNotBeChangedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
 import org.auwerk.otus.arch.orderservice.exception.OrderPositionNotFoundException;
 import org.auwerk.otus.arch.orderservice.exception.ProductNotAvailableException;
@@ -44,6 +45,8 @@ public class OrderPositionResource {
                 })
                 .onFailure(OrderNotFoundException.class)
                 .recoverWithItem(failure -> Response.status(Status.NOT_FOUND).entity(failure.getMessage()).build())
+                .onFailure(OrderCanNotBeChangedException.class)
+                .recoverWithItem(failure -> Response.status(Status.FORBIDDEN).entity(failure.getMessage()).build())
                 .onFailure(ProductNotAvailableException.class)
                 .recoverWithItem(failure -> Response.status(Status.CONFLICT).entity(failure.getMessage()).build())
                 .onFailure()
@@ -57,6 +60,8 @@ public class OrderPositionResource {
                 .map(v -> Response.ok().build())
                 .onFailure(OrderPositionNotFoundException.class)
                 .recoverWithItem(failure -> Response.status(Status.NOT_FOUND).entity(failure.getMessage()).build())
+                .onFailure(OrderCanNotBeChangedException.class)
+                .recoverWithItem(failure -> Response.status(Status.FORBIDDEN).entity(failure.getMessage()).build())
                 .onFailure()
                 .recoverWithItem(failure -> Response.serverError().entity(failure.getMessage()).build());
     }

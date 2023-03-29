@@ -31,6 +31,7 @@ import org.auwerk.otus.arch.orderservice.domain.OrderStatus;
 import org.auwerk.otus.arch.orderservice.domain.OrderStatusChange;
 import org.auwerk.otus.arch.orderservice.exception.OrderAlreadyPlacedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCanNotBeCanceledException;
+import org.auwerk.otus.arch.orderservice.exception.OrderCanNotBeChangedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCreatedByDifferentUserException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
 import org.auwerk.otus.arch.orderservice.exception.OrderPositionNotFoundException;
@@ -217,7 +218,7 @@ public class OrderServiceImplTest {
                 .thenReturn(Uni.createFrom().item(productPrice));
         when(orderDao.findById(pool, ORDER_ID))
                 .thenReturn(Uni.createFrom().item(order));
-        when(positionDao.insert(eq(pool), eq(ORDER_ID), any(OrderPosition.class)))
+        when(positionDao.insert(eq(pool), any(OrderPosition.class)))
                 .thenReturn(Uni.createFrom().item(POSITION_ID));
         final var subscriber = service.addOrderPosition(ORDER_ID, PRODUCT_CODE, QUANTITY).subscribe()
                 .withSubscriber(UniAssertSubscriber.create());
@@ -225,8 +226,9 @@ public class OrderServiceImplTest {
         // then
         subscriber.assertItem(POSITION_ID);
         verify(positionDao, times(1))
-                .insert(eq(pool), eq(ORDER_ID), argThat(position -> PRODUCT_CODE.equals(position.getProductCode())
-                        && QUANTITY == position.getQuantity() && productPrice.equals(position.getPrice())));
+                .insert(eq(pool),
+                        argThat(p -> ORDER_ID.equals(p.getOrderId()) && PRODUCT_CODE.equals(p.getProductCode())
+                                && QUANTITY == p.getQuantity() && productPrice.equals(p.getPrice())));
     }
 
     @Test
@@ -244,7 +246,7 @@ public class OrderServiceImplTest {
         assertEquals(ORDER_ID, failure.getOrderId());
 
         verify(positionDao, never())
-                .insert(eq(pool), eq(ORDER_ID), any(OrderPosition.class));
+                .insert(eq(pool), argThat(p -> ORDER_ID.equals(p.getOrderId())));
     }
 
     @Test
@@ -267,20 +269,43 @@ public class OrderServiceImplTest {
         assertEquals(PRODUCT_CODE, failure.getProductCode());
 
         verify(positionDao, never())
-                .insert(eq(pool), eq(ORDER_ID), any(OrderPosition.class));
+                .insert(eq(pool), argThat(p -> ORDER_ID.equals(p.getOrderId())));
+    }
+
+    @Test
+    void addOrderPosition_orderCanNotBeChanged() {
+        // given
+        final var order = buildOrder(OrderStatus.PLACED);
+
+        // when
+        when(productService.getProductPrice(PRODUCT_CODE))
+                .thenReturn(Uni.createFrom().item(BigDecimal.TEN));
+        when(orderDao.findById(pool, ORDER_ID))
+                .thenReturn(Uni.createFrom().item(order));
+        final var subscriber = service.addOrderPosition(ORDER_ID, PRODUCT_CODE, QUANTITY).subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
+
+        // then
+        final var failure = (OrderCanNotBeChangedException) subscriber
+                .assertFailedWith(OrderCanNotBeChangedException.class)
+                .getFailure();
+        assertEquals(ORDER_ID, failure.getOrderId());
+
+        verify(positionDao, never())
+                .insert(eq(pool), argThat(p -> ORDER_ID.equals(p.getOrderId())));
     }
 
     @Test
     void removeOrderPosition_success() {
         // given
-        final var position = OrderPosition.builder()
-                .productCode(PRODUCT_CODE)
-                .quantity(QUANTITY)
-                .build();
+        final var position = buildPosition();
+        final var order = buildOrder(OrderStatus.CREATED);
 
         // when
         when(positionDao.findById(pool, POSITION_ID))
                 .thenReturn(Uni.createFrom().item(position));
+        when(orderDao.findById(pool, ORDER_ID))
+                .thenReturn(Uni.createFrom().item(order));
         final var subscriber = service.removeOrderPosition(POSITION_ID).subscribe()
                 .withSubscriber(UniAssertSubscriber.create());
 
@@ -304,15 +329,34 @@ public class OrderServiceImplTest {
     }
 
     @Test
+    void removeOrderPosition_orderCanNotBeChanged() {
+        // given
+        final var position = buildPosition();
+        final var order = buildOrder(OrderStatus.PLACED);
+
+        // when
+        when(positionDao.findById(pool, POSITION_ID))
+                .thenReturn(Uni.createFrom().item(position));
+        when(orderDao.findById(pool, ORDER_ID))
+                .thenReturn(Uni.createFrom().item(order));
+        final var subscriber = service.removeOrderPosition(POSITION_ID).subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
+
+        // then
+        final var failure = (OrderCanNotBeChangedException) subscriber
+                .assertFailedWith(OrderCanNotBeChangedException.class)
+                .getFailure();
+        assertEquals(ORDER_ID, failure.getOrderId());
+
+        verify(positionDao, never())
+                .insert(eq(pool), argThat(p -> ORDER_ID.equals(p.getOrderId())));
+    }
+
+    @Test
     void placeOrder_success() {
         // given
         final var productPrice = BigDecimal.TEN;
-        final var positions = List.of(
-                OrderPosition.builder()
-                        .id(UUID.randomUUID())
-                        .productCode(PRODUCT_CODE)
-                        .quantity(1)
-                        .build());
+        final var positions = List.of(buildPosition());
         final var order = buildOrder(OrderStatus.CREATED);
 
         // when
@@ -392,12 +436,7 @@ public class OrderServiceImplTest {
     @Test
     void placeOrder_productNotAvailable() {
         // given
-        final var positions = List.of(
-                OrderPosition.builder()
-                        .id(UUID.randomUUID())
-                        .productCode(PRODUCT_CODE)
-                        .quantity(1)
-                        .build());
+        final var positions = List.of(buildPosition());
         final var order = buildOrder(OrderStatus.CREATED);
 
         // when
@@ -488,6 +527,14 @@ public class OrderServiceImplTest {
                 .assertFailedWith(OrderCanNotBeCanceledException.class)
                 .getFailure();
         assertEquals(ORDER_ID, failure.getOrderId());
+    }
+
+    private static OrderPosition buildPosition() {
+        return OrderPosition.builder()
+                .orderId(ORDER_ID)
+                .productCode(PRODUCT_CODE)
+                .quantity(QUANTITY)
+                .build();
     }
 
     private static Order buildOrder(OrderStatus status) {

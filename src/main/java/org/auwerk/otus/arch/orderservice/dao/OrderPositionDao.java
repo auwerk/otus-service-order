@@ -15,7 +15,7 @@ public interface OrderPositionDao {
 
     Uni<List<OrderPosition>> findAllByOrderId(PgPool pool, UUID orderId);
 
-    Uni<UUID> insert(PgPool pool, UUID orderId, OrderPosition position);
+    Uni<UUID> insert(PgPool pool, OrderPosition position);
 
     Uni<Void> updatePriceById(PgPool pool, UUID id, BigDecimal price);
 

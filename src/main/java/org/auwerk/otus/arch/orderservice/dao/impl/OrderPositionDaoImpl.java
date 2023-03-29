@@ -48,11 +48,11 @@ public class OrderPositionDaoImpl implements OrderPositionDao {
     }
 
     @Override
-    public Uni<UUID> insert(PgPool pool, UUID orderId, OrderPosition position) {
+    public Uni<UUID> insert(PgPool pool, OrderPosition position) {
         return pool
                 .preparedQuery(
                         "INSERT INTO order_positions(id, order_id, product_code, quantity, price) VALUES($1, $2, $3, $4, $5) RETURNING id")
-                .execute(Tuple.of(UUID.randomUUID(), orderId, position.getProductCode(), position.getQuantity(),
+                .execute(Tuple.of(UUID.randomUUID(), position.getOrderId(), position.getProductCode(), position.getQuantity(),
                         position.getPrice()))
                 .map(rowSet -> {
                     if (rowSet.rowCount() != 1) {
@@ -89,6 +89,7 @@ public class OrderPositionDaoImpl implements OrderPositionDao {
     private static OrderPosition mapRow(Row row) {
         return OrderPosition.builder()
                 .id(row.getUUID("id"))
+                .orderId(row.getUUID("order_id"))
                 .productCode(row.getString("product_code"))
                 .quantity(row.getInteger("quantity"))
                 .price(row.getBigDecimal("price"))

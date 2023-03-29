@@ -3,6 +3,7 @@ package org.auwerk.otus.arch.orderservice.api;
 import java.util.UUID;
 
 import org.auwerk.otus.arch.orderservice.api.dto.AddOrderPositionRequestDto;
+import org.auwerk.otus.arch.orderservice.exception.OrderCanNotBeChangedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
 import org.auwerk.otus.arch.orderservice.exception.OrderPositionNotFoundException;
 import org.auwerk.otus.arch.orderservice.exception.ProductNotAvailableException;
@@ -77,6 +78,21 @@ public class OrderPositionResourceTest extends AbstractAuthenticatedResourceTest
     }
 
     @Test
+    void addOrderPosition_orderCanNotBeChanged() {
+        Mockito.when(orderService.addOrderPosition(ORDER_ID, PRODUCT_CODE, QUANTITY))
+                .thenReturn(Uni.createFrom().failure(new OrderCanNotBeChangedException(ORDER_ID)));
+
+        RestAssured.given()
+                .auth().oauth2(getAccessToken(USERNAME))
+                .contentType(ContentType.JSON)
+                .body(buildAddRequest())
+                .post()
+                .then()
+                .statusCode(403)
+                .body(Matchers.equalTo("order can not be changed, id=" + ORDER_ID));
+    }
+
+    @Test
     void removeOrderPosition_success() {
         Mockito.when(orderService.removeOrderPosition(POSITION_ID))
                 .thenReturn(Uni.createFrom().voidItem());
@@ -99,6 +115,19 @@ public class OrderPositionResourceTest extends AbstractAuthenticatedResourceTest
                 .then()
                 .statusCode(404)
                 .body(Matchers.equalTo("order position not found, id=" + POSITION_ID));
+    }
+
+    @Test
+    void removeOrderPosition_orderCanNotBeChanged() {
+        Mockito.when(orderService.removeOrderPosition(POSITION_ID))
+                .thenReturn(Uni.createFrom().failure(new OrderCanNotBeChangedException(ORDER_ID)));
+
+        RestAssured.given()
+                .auth().oauth2(getAccessToken(USERNAME))
+                .delete("/{positionId}", POSITION_ID)
+                .then()
+                .statusCode(403)
+                .body(Matchers.equalTo("order can not be changed, id=" + ORDER_ID));
     }
 
     private static AddOrderPositionRequestDto buildAddRequest() {

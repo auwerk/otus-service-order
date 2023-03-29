@@ -16,6 +16,7 @@ import org.auwerk.otus.arch.orderservice.domain.OrderStatus;
 import org.auwerk.otus.arch.orderservice.domain.OrderStatusChange;
 import org.auwerk.otus.arch.orderservice.exception.OrderAlreadyPlacedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCanNotBeCanceledException;
+import org.auwerk.otus.arch.orderservice.exception.OrderCanNotBeChangedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCreatedByDifferentUserException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
 import org.auwerk.otus.arch.orderservice.exception.OrderPositionNotFoundException;
@@ -90,14 +91,20 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public Uni<UUID> addOrderPosition(UUID orderId, String productCode, Integer quantity) {
         final var position = OrderPosition.builder()
+                .orderId(orderId)
                 .productCode(productCode)
                 .quantity(quantity)
                 .build();
 
         return pool.withTransaction(conn -> orderDao.findById(pool, orderId)
+                .invoke(order -> {
+                    if (!OrderStatus.CREATED.equals(order.getStatus())) {
+                        throw new OrderCanNotBeChangedException(orderId);
+                    }
+                })
                 .call(() -> productService.getProductPrice(productCode)
                         .invoke(price -> position.setPrice(price)))
-                .flatMap(order -> positionDao.insert(pool, orderId, position))
+                .flatMap(order -> positionDao.insert(pool, position))
                 .onFailure(NoSuchElementException.class)
                 .transform(ex -> new OrderNotFoundException(orderId)));
     }
@@ -105,6 +112,12 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public Uni<Void> removeOrderPosition(UUID positionId) {
         return positionDao.findById(pool, positionId)
+                .call(position -> orderDao.findById(pool, position.getOrderId())
+                        .invoke(order -> {
+                            if (!OrderStatus.CREATED.equals(order.getStatus())) {
+                                throw new OrderCanNotBeChangedException(order.getId());
+                            }
+                        }))
                 .flatMap(position -> positionDao.deleteById(pool, positionId))
                 .onFailure(NoSuchElementException.class)
                 .transform(ex -> new OrderPositionNotFoundException(positionId));
