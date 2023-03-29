@@ -146,6 +146,11 @@ public class OrderServiceImplTest {
 
         // then
         subscriber.assertItem(order);
+
+        verify(positionDao, times(1))
+                .findAllByOrderId(pool, ORDER_ID);
+        verify(statusChangeDao, times(1))
+                .findAllByOrderId(pool, ORDER_ID);
     }
 
     @Test

@@ -66,6 +66,12 @@ public class OrderServiceImpl implements OrderService {
                         throw new OrderCreatedByDifferentUserException(order.getId());
                     }
                 })
+                .call(order -> Uni.combine().all().unis(
+                        positionDao.findAllByOrderId(pool, order.getId())
+                                .invoke(positions -> order.setPositions(positions)),
+                        statusChangeDao.findAllByOrderId(pool, order.getId())
+                                .invoke(statusChanges -> order.setStatusChanges(statusChanges)))
+                        .discardItems())
                 .onFailure(NoSuchElementException.class)
                 .transform(ex -> new OrderNotFoundException(id));
     }
