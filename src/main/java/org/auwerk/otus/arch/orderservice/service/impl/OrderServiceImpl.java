@@ -103,6 +103,18 @@ public class OrderServiceImpl implements OrderService {
                         throw new OrderAlreadyPlacedException(order.getId());
                     }
                 })
+                .call(order -> positionDao.findAllByOrderId(pool, order.getId())
+                        .invoke(positions -> order.setPositions(positions)))
+                .call(order -> {
+                    final var positionUnis = order.getPositions().stream()
+                            .map(position -> productService.getProductPrice(position.getProductCode())
+                                    .call(price -> positionDao.updatePriceById(pool, position.getId(), price)))
+                            .toList();
+                    if (positionUnis.isEmpty()) {
+                        return Uni.createFrom().voidItem();
+                    }
+                    return Uni.combine().all().unis(positionUnis).discardItems();
+                })
                 .call(order -> Uni.combine().all().unis(
                         insertOrderStatusChange(pool, order.getId(), OrderStatus.PLACED),
                         orderDao.updateStatus(pool, order.getId(), OrderStatus.PLACED)).discardItems())

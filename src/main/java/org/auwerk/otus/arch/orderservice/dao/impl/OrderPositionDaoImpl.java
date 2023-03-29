@@ -1,5 +1,6 @@
 package org.auwerk.otus.arch.orderservice.dao.impl;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -59,6 +60,18 @@ public class OrderPositionDaoImpl implements OrderPositionDao {
                     }
                     return rowSet.iterator().next().getUUID("id");
                 });
+    }
+
+    @Override
+    public Uni<Void> updatePriceById(PgPool pool, UUID id, BigDecimal price) {
+        return pool.preparedQuery("UPDATE order_positions SET price=$1 WHERE id=$2")
+                .execute(Tuple.of(price, id))
+                .invoke(rowSet -> {
+                    if (rowSet.rowCount() != 1) {
+                        throw new DaoException("order position price update failed, id=" + id);
+                    }
+                })
+                .replaceWithVoid();
     }
 
     @Override

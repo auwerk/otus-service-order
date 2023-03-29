@@ -155,9 +155,7 @@ public class OrderServiceImplTest {
     @Test
     void addOrderPosition_success() {
         // given
-        final var order = Order.builder()
-                .id(ORDER_ID)
-                .build();
+        final var order = buildOrder(OrderStatus.CREATED);
         final var productPrice = BigDecimal.TEN;
 
         // when
@@ -198,9 +196,7 @@ public class OrderServiceImplTest {
     @Test
     void addOrderPosition_productNotAvailable() {
         // given
-        final var order = Order.builder()
-                .id(ORDER_ID)
-                .build();
+        final var order = buildOrder(OrderStatus.CREATED);
 
         // when
         when(productService.getProductPrice(PRODUCT_CODE))
@@ -256,23 +252,30 @@ public class OrderServiceImplTest {
     @Test
     void placeOrder_success() {
         // given
-        final var order = Order.builder()
-                .id(ORDER_ID)
-                .status(OrderStatus.CREATED)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .userName(USERNAME)
-                .build();
+        final var productPrice = BigDecimal.TEN;
+        final var positions = List.of(
+                OrderPosition.builder()
+                        .id(UUID.randomUUID())
+                        .productCode(PRODUCT_CODE)
+                        .quantity(1)
+                        .build());
+        final var order = buildOrder(OrderStatus.CREATED);
 
         // when
         when(orderDao.findById(pool, ORDER_ID))
                 .thenReturn(Uni.createFrom().item(order));
+        when(positionDao.findAllByOrderId(pool, ORDER_ID))
+                .thenReturn(Uni.createFrom().item(positions));
+        when(productService.getProductPrice(PRODUCT_CODE))
+                .thenReturn(Uni.createFrom().item(productPrice));
         final var subscriber = service.placeOrder(ORDER_ID).subscribe()
                 .withSubscriber(UniAssertSubscriber.create());
 
         // then
         subscriber.assertCompleted();
 
+        verify(positionDao, times(1))
+                .updatePriceById(pool, positions.get(0).getId(), productPrice);
         verify(statusChangeDao, times(1))
                 .insert(eq(pool), eq(ORDER_ID),
                         argThat(statusChange -> OrderStatus.PLACED.equals(statusChange.getStatus())));
@@ -298,13 +301,8 @@ public class OrderServiceImplTest {
     @Test
     void placeOrder_createdByDifferentUser() {
         // given
-        final var order = Order.builder()
-                .id(ORDER_ID)
-                .status(OrderStatus.CREATED)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .userName("other-user")
-                .build();
+        final var order = buildOrder(OrderStatus.CREATED);
+        order.setUserName("other-user");
 
         // when
         when(orderDao.findById(eq(pool), eq(ORDER_ID)))
@@ -322,13 +320,7 @@ public class OrderServiceImplTest {
     @Test
     void placeOrder_alreadyPlaced() {
         // given
-        final var order = Order.builder()
-                .id(ORDER_ID)
-                .status(OrderStatus.PLACED)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .userName(USERNAME)
-                .build();
+        final var order = buildOrder(OrderStatus.PLACED);
 
         // when
         when(orderDao.findById(eq(pool), eq(ORDER_ID)))
@@ -344,15 +336,37 @@ public class OrderServiceImplTest {
     }
 
     @Test
+    void placeOrder_productNotAvailable() {
+        // given
+        final var positions = List.of(
+                OrderPosition.builder()
+                        .id(UUID.randomUUID())
+                        .productCode(PRODUCT_CODE)
+                        .quantity(1)
+                        .build());
+        final var order = buildOrder(OrderStatus.CREATED);
+
+        // when
+        when(orderDao.findById(eq(pool), eq(ORDER_ID)))
+                .thenReturn(Uni.createFrom().item(order));
+        when(positionDao.findAllByOrderId(pool, ORDER_ID))
+                .thenReturn(Uni.createFrom().item(positions));
+        when(productService.getProductPrice(PRODUCT_CODE))
+                .thenReturn(Uni.createFrom().failure(new ProductNotAvailableException(PRODUCT_CODE)));
+        final var subscriber = service.placeOrder(ORDER_ID).subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
+
+        // then
+        final var failure = (ProductNotAvailableException) subscriber
+                .assertFailedWith(ProductNotAvailableException.class)
+                .getFailure();
+        assertEquals(PRODUCT_CODE, failure.getProductCode());
+    }
+
+    @Test
     void cancelOrder_success() {
         // given
-        final var order = Order.builder()
-                .id(ORDER_ID)
-                .status(OrderStatus.CREATED)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .userName(USERNAME)
-                .build();
+        final var order = buildOrder(OrderStatus.CREATED);
 
         // when
         when(orderDao.findById(pool, ORDER_ID))
@@ -388,13 +402,8 @@ public class OrderServiceImplTest {
     @Test
     void cancelOrder_createdByDifferentUser() {
         // given
-        final var order = Order.builder()
-                .id(ORDER_ID)
-                .status(OrderStatus.CREATED)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .userName("other-user")
-                .build();
+        final var order = buildOrder(OrderStatus.CREATED);
+        order.setUserName("other-user");
 
         // when
         when(orderDao.findById(eq(pool), eq(ORDER_ID)))
@@ -412,13 +421,7 @@ public class OrderServiceImplTest {
     @Test
     void cancelOrder_canNotBeCanceled() {
         // given
-        final var order = Order.builder()
-                .id(ORDER_ID)
-                .status(OrderStatus.PLACED)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .userName(USERNAME)
-                .build();
+        final var order = buildOrder(OrderStatus.PLACED);
 
         // when
         when(orderDao.findById(eq(pool), eq(ORDER_ID)))
@@ -431,5 +434,15 @@ public class OrderServiceImplTest {
                 .assertFailedWith(OrderCanNotBeCanceledException.class)
                 .getFailure();
         assertEquals(ORDER_ID, failure.getOrderId());
+    }
+
+    private static Order buildOrder(OrderStatus status) {
+        return Order.builder()
+                .id(ORDER_ID)
+                .status(status)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .userName(USERNAME)
+                .build();
     }
 }
