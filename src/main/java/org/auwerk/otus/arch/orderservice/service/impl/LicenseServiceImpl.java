@@ -25,4 +25,10 @@ public class LicenseServiceImpl implements LicenseService {
                 .createLicense(new CreateLicenseRequestDto(UUID.randomUUID(), productCode))
                 .map(response -> response.getLicenseId());
     }
+
+    @Override
+    public Uni<Void> deleteLicense(String productCode) {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }

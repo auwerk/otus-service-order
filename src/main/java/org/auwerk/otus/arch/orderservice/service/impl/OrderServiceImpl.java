@@ -7,6 +7,8 @@ import java.util.UUID;
 
 import javax.enterprise.context.ApplicationScoped;
 
+import org.auwerk.arch.reactivesaga.Saga;
+import org.auwerk.arch.reactivesaga.log.InMemoryExecutionLog;
 import org.auwerk.otus.arch.orderservice.dao.OrderDao;
 import org.auwerk.otus.arch.orderservice.dao.OrderPositionDao;
 import org.auwerk.otus.arch.orderservice.dao.OrderStatusChangeDao;
@@ -171,13 +173,19 @@ public class OrderServiceImpl implements OrderService {
                 .call(order -> positionDao.findAllByOrderId(pool, order.getId())
                         .invoke(positions -> order.setPositions(positions)))
                 .call(order -> {
-                    final var positionUnis = order.getPositions().stream()
-                            .map(position -> licenseService.createLicense(position.getProductCode()))
-                            .toList();
-                    if (positionUnis.isEmpty()) {
+                    if (order.getPositions().isEmpty()) {
                         return Uni.createFrom().voidItem();
                     }
-                    return Uni.combine().all().unis(positionUnis).discardItems();
+
+                    final var sagaExectionLog = new InMemoryExecutionLog();
+                    final var saga = new Saga(sagaExectionLog);
+                    order.getPositions().forEach(position -> saga.addStory(
+                            context -> licenseService.createLicense(position.getProductCode())
+                                    .invoke(licenseId -> context.getValues().put("licenseId", licenseId))
+                                    .replaceWithVoid(),
+                            context -> licenseService.deleteLicense(context.getValue("licenseId"))));
+
+                    return saga.execute();
                 })
                 .call(order -> Uni.combine().all().unis(
                         insertOrderStatusChange(pool, order.getId(), OrderStatus.COMPLETED),
