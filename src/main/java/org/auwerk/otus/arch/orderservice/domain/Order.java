@@ -11,8 +11,10 @@ import lombok.Data;
 @Builder
 public class Order {
     private UUID id;
+    private String userName;
     private OrderStatus status;
     private LocalDateTime createdAt;
-    private LocalDateTime placedAt;
+    private LocalDateTime updatedAt;
     private List<OrderPosition> positions;
+    private List<OrderStatusChange> statusChanges;
 }

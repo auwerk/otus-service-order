@@ -1,5 +1,6 @@
 package org.auwerk.otus.arch.orderservice.dao;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -10,7 +11,13 @@ import io.vertx.mutiny.pgclient.PgPool;
 
 public interface OrderPositionDao {
 
-    public Uni<List<OrderPosition>> findAllByOrderId(PgPool pool, UUID orderId);
+    Uni<OrderPosition> findById(PgPool pool, UUID id);
 
-    public Uni<Integer> insert(PgPool pool, UUID orderId, OrderPosition position);
+    Uni<List<OrderPosition>> findAllByOrderId(PgPool pool, UUID orderId);
+
+    Uni<UUID> insert(PgPool pool, OrderPosition position);
+
+    Uni<Void> updatePriceById(PgPool pool, UUID id, BigDecimal price);
+
+    Uni<Void> deleteById(PgPool pool, UUID id);
 }

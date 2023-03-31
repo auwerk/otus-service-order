@@ -12,7 +12,8 @@ import lombok.Data;
 public class OrderDto {
     private UUID id;
     private String status;
-    private List<OrderPositionDto> positions;
     private LocalDateTime createdAt;
-    private LocalDateTime placedAt;
+    private LocalDateTime updatedAt;
+    private List<OrderPositionDto> positions;
+    private List<OrderStatusChangeDto> statusChanges;
 }

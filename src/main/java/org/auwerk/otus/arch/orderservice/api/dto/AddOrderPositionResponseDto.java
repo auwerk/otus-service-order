@@ -9,6 +9,6 @@ import lombok.Data;
 @Data
 @Builder
 @RegisterForReflection
-public class CreateOrderResponseDto {
-    private final UUID orderId;
+public class AddOrderPositionResponseDto {
+    private UUID positionId;
 }

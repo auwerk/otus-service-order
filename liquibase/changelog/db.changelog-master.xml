@@ -47,4 +47,37 @@
         <dropColumn tableName="orders" columnName="quantity" />
     </changeSet>
 
+    <changeSet id="04-add-username-column" author="auwerk">
+        <addColumn tableName="orders">
+            <column name="username" type="varchar(255)" remarks="User creator name">
+                <constraints nullable="false" />
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="05-status-history" author="auwerk">
+        <createTable tableName="order_status_changes" remarks="Order status change history">
+            <column name="id" type="uuid" remarks="Order status change unique UD">
+                <constraints primaryKey="true" />
+            </column>
+            <column name="order_id" type="uuid" remarks="Order unique ID">
+                <constraints nullable="false" foreignKeyName="fk_order_position_order"
+                    references="orders(id)" />
+            </column>
+            <column name="status" type="varchar(16)" remarks="Order status code">
+                <constraints nullable="false" />
+            </column>
+            <column name="created_at" type="datetime" remarks="Order status change date/time">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+        <renameColumn tableName="orders" oldColumnName="placed_at" newColumnName="updated_at" />
+    </changeSet>
+
+    <changeSet id="06-add-position-price-column" author="auwerk">
+        <addColumn tableName="order_positions">
+            <column name="price" type="decimal" remarks="Fixed product price for the position" />
+        </addColumn>
+    </changeSet>
+
 </databaseChangeLog>

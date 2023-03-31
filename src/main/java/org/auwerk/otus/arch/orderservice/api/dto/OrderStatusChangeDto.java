@@ -1,7 +1,8 @@
 package org.auwerk.otus.arch.orderservice.api.dto;
 
-import java.math.BigDecimal;
-import java.util.UUID;
+import java.time.LocalDateTime;
+
+import org.auwerk.otus.arch.orderservice.domain.OrderStatus;
 
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import lombok.AllArgsConstructor;
@@ -16,9 +17,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 @RegisterForReflection
-public class OrderPositionDto {
-    private UUID id;
-    private String productCode;
-    private Integer quantity;
-    private BigDecimal price;
+public class OrderStatusChangeDto {
+    private OrderStatus status;
+    private LocalDateTime createdAt;
 }

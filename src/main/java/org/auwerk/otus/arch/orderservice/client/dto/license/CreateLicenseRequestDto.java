@@ -1,10 +1,9 @@
-package org.auwerk.otus.arch.orderservice.api.dto;
+package org.auwerk.otus.arch.orderservice.client.dto.license;
 
-import java.util.List;
+import java.util.UUID;
 
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -13,8 +12,8 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 @RegisterForReflection
-public class PlaceOrderRequestDto {
-    private List<OrderPositionDto> positions;
+public class CreateLicenseRequestDto {
+    private UUID queryId;
+    private String productCode;
 }

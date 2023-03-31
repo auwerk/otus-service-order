@@ -11,6 +11,7 @@ import javax.enterprise.context.ApplicationScoped;
 import org.auwerk.otus.arch.orderservice.dao.OrderDao;
 import org.auwerk.otus.arch.orderservice.domain.Order;
 import org.auwerk.otus.arch.orderservice.domain.OrderStatus;
+import org.auwerk.otus.arch.orderservice.exception.DaoException;
 
 import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.pgclient.PgPool;
@@ -21,9 +22,9 @@ import io.vertx.mutiny.sqlclient.Tuple;
 public class OrderDaoImpl implements OrderDao {
 
     @Override
-    public Uni<List<Order>> findAll(PgPool pool, int pageSize, int page) {
-        return pool.preparedQuery("SELECT * FROM orders ORDER BY created_at DESC LIMIT $1 OFFSET $2")
-                .execute(Tuple.of(pageSize, pageSize * (page - 1)))
+    public Uni<List<Order>> findAllByUserName(PgPool pool, String userName, int pageSize, int page) {
+        return pool.preparedQuery("SELECT * FROM orders WHERE username=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3")
+                .execute(Tuple.of(userName, pageSize, pageSize * (page - 1)))
                 .map(rowSet -> {
                     final var result = new ArrayList<Order>(pageSize);
                     final var rowSetIterator = rowSet.iterator();
@@ -48,27 +49,36 @@ public class OrderDaoImpl implements OrderDao {
     }
 
     @Override
-    public Uni<Integer> insert(PgPool pool, UUID id, LocalDateTime createdAt) {
-        return pool.preparedQuery("INSERT INTO orders(id, created_at) VALUES($1, $2)")
-                .execute(Tuple.of(id, createdAt))
-                .map(rowSet -> rowSet.rowCount());
+    public Uni<Void> insert(PgPool pool, UUID id, String userName, LocalDateTime createdAt) {
+        return pool.preparedQuery("INSERT INTO orders(id, username, created_at, updated_at) VALUES($1, $2, $3, $4)")
+                .execute(Tuple.of(id, userName, createdAt, createdAt))
+                .flatMap(rowSet -> {
+                    if (rowSet.rowCount() != 1) {
+                        throw new DaoException("order insertion failed");
+                    }
+                    return Uni.createFrom().voidItem();
+                });
     }
 
     @Override
-    public Uni<Integer> update(PgPool pool, Order order) {
-        return pool
-                .preparedQuery(
-                        "UPDATE orders SET status=$1, placed_at=$2 WHERE id=$3")
-                .execute(Tuple.of(order.getStatus().name(), order.getPlacedAt(), order.getId()))
-                .map(rowSet -> rowSet.rowCount());
+    public Uni<Void> updateStatus(PgPool pool, UUID id, OrderStatus status) {
+        return pool.preparedQuery("UPDATE orders SET status=$1, updated_at=$2 WHERE id=$3")
+                .execute(Tuple.of(status, LocalDateTime.now(), id))
+                .flatMap(rowSet -> {
+                    if (rowSet.rowCount() != 1) {
+                        throw new DaoException("order status update failed");
+                    }
+                    return Uni.createFrom().voidItem();
+                });
     }
 
     private static Order mapRow(Row row) {
         return Order.builder()
                 .id(row.getUUID("id"))
+                .userName(row.getString("username"))
                 .status(OrderStatus.valueOf(row.getString("status")))
                 .createdAt(row.getLocalDateTime("created_at"))
-                .placedAt(row.getLocalDateTime("placed_at"))
+                .updatedAt(row.getLocalDateTime("updated_at"))
                 .build();
     }
 }
