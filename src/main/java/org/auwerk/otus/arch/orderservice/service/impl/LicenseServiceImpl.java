@@ -27,8 +27,7 @@ public class LicenseServiceImpl implements LicenseService {
     }
 
     @Override
-    public Uni<Void> deleteLicense(String productCode) {
-        // TODO Auto-generated method stub
-        return null;
+    public Uni<Void> deleteLicense(UUID licenseId) {
+        return licenseServiceClient.deleteLicense(licenseId);
     }
 }

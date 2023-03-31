@@ -37,6 +37,7 @@ import org.auwerk.otus.arch.orderservice.exception.OrderIsNotPlacedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
 import org.auwerk.otus.arch.orderservice.exception.OrderPositionNotFoundException;
 import org.auwerk.otus.arch.orderservice.exception.ProductNotAvailableException;
+import org.auwerk.otus.arch.orderservice.service.BillingService;
 import org.auwerk.otus.arch.orderservice.service.LicenseService;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
 import org.auwerk.otus.arch.orderservice.service.ProductService;
@@ -65,8 +66,9 @@ public class OrderServiceImplTest {
     private final SecurityIdentity securityIdentity = mock(SecurityIdentity.class);
     private final ProductService productService = mock(ProductService.class);
     private final LicenseService licenseService = mock(LicenseService.class);
+    private final BillingService billingService = mock(BillingService.class);
     private final OrderService service = new OrderServiceImpl(pool, orderDao, positionDao, statusChangeDao,
-            securityIdentity, productService, licenseService);
+            securityIdentity, productService, licenseService, billingService);
 
     @BeforeEach
     void mockTransaction() {
@@ -464,18 +466,25 @@ public class OrderServiceImplTest {
         // given
         final var positions = List.of(buildPosition(), buildPosition());
         final var order = buildOrder(OrderStatus.PLACED);
+        final var billingOperationId = UUID.randomUUID();
 
         // when
         when(orderDao.findById(pool, ORDER_ID))
                 .thenReturn(Uni.createFrom().item(order));
         when(positionDao.findAllByOrderId(pool, ORDER_ID))
                 .thenReturn(Uni.createFrom().item(positions));
+        when(licenseService.createLicense(PRODUCT_CODE))
+                .thenReturn(Uni.createFrom().item(UUID.randomUUID()));
+        when(billingService.withdrawFunds(any(BigDecimal.class), anyString()))
+                .thenReturn(Uni.createFrom().item(billingOperationId));
         final var subscriber = service.payOrder(ORDER_ID).subscribe()
                 .withSubscriber(UniAssertSubscriber.create());
 
         // then
         subscriber.assertCompleted();
 
+        verify(billingService, times(1))
+                .withdrawFunds(eq(OrderServiceImpl.calculateTotal(positions)), anyString());
         verify(licenseService, times(2))
                 .createLicense(PRODUCT_CODE);
         verify(statusChangeDao, times(1))
@@ -615,6 +624,7 @@ public class OrderServiceImplTest {
                 .orderId(ORDER_ID)
                 .productCode(PRODUCT_CODE)
                 .quantity(QUANTITY)
+                .price(BigDecimal.TEN)
                 .build();
     }
 

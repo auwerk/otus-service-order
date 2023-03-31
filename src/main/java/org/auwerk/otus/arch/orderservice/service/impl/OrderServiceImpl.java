@@ -1,5 +1,6 @@
 package org.auwerk.otus.arch.orderservice.service.impl;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -23,6 +24,7 @@ import org.auwerk.otus.arch.orderservice.exception.OrderCreatedByDifferentUserEx
 import org.auwerk.otus.arch.orderservice.exception.OrderIsNotPlacedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
 import org.auwerk.otus.arch.orderservice.exception.OrderPositionNotFoundException;
+import org.auwerk.otus.arch.orderservice.service.BillingService;
 import org.auwerk.otus.arch.orderservice.service.LicenseService;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
 import org.auwerk.otus.arch.orderservice.service.ProductService;
@@ -43,6 +45,7 @@ public class OrderServiceImpl implements OrderService {
     private final SecurityIdentity securityIdentity;
     private final ProductService productService;
     private final LicenseService licenseService;
+    private final BillingService billingService;
 
     @Override
     public Uni<List<Order>> getAllOrders(int pageSize, int page) {
@@ -179,6 +182,16 @@ public class OrderServiceImpl implements OrderService {
 
                     final var sagaExectionLog = new InMemoryExecutionLog();
                     final var saga = new Saga(sagaExectionLog);
+
+                    saga.addStory(
+                            context -> {
+                                return billingService
+                                        .withdrawFunds(calculateTotal(order.getPositions()),
+                                                "payment for order ID=" + order.getId())
+                                        .invoke(operationId -> context.getValues().put("operationId", operationId))
+                                        .replaceWithVoid();
+                            },
+                            context -> billingService.cancelOperation(context.getValue("operationId")));
                     order.getPositions().forEach(position -> saga.addStory(
                             context -> licenseService.createLicense(position.getProductCode())
                                     .invoke(licenseId -> context.getValues().put("licenseId", licenseId))
@@ -212,6 +225,15 @@ public class OrderServiceImpl implements OrderService {
                 .replaceWithVoid()
                 .onFailure(NoSuchElementException.class)
                 .transform(ex -> new OrderNotFoundException(orderId)));
+    }
+
+    protected static BigDecimal calculateTotal(List<OrderPosition> positions) {
+        var total = BigDecimal.ZERO;
+        for (final var position : positions) {
+            total = total.add(position.getPrice()
+                    .multiply(BigDecimal.valueOf(position.getQuantity())));
+        }
+        return total;
     }
 
     private Uni<Void> insertOrderStatusChange(PgPool pool, UUID orderId, OrderStatus targetStatus) {
