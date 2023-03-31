@@ -1,6 +1,6 @@
-package org.auwerk.otus.arch.orderservice.client.dto;
+package org.auwerk.otus.arch.orderservice.client.dto.license;
 
-import java.math.BigDecimal;
+import java.util.UUID;
 
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import lombok.AllArgsConstructor;
@@ -13,7 +13,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @RegisterForReflection
-public class ProductDto {
-    private Boolean available;
-    private BigDecimal price;
+public class CreateLicenseRequestDto {
+    private UUID queryId;
+    private String productCode;
 }

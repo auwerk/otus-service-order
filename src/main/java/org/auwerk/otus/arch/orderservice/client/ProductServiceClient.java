@@ -3,7 +3,7 @@ package org.auwerk.otus.arch.orderservice.client;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 
-import org.auwerk.otus.arch.orderservice.client.dto.ProductDto;
+import org.auwerk.otus.arch.orderservice.client.dto.product.ProductDto;
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 
 import io.smallrye.mutiny.Uni;
