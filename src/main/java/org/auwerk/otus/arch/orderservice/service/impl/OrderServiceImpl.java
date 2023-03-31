@@ -18,8 +18,10 @@ import org.auwerk.otus.arch.orderservice.exception.OrderAlreadyPlacedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCanNotBeCanceledException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCanNotBeChangedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCreatedByDifferentUserException;
+import org.auwerk.otus.arch.orderservice.exception.OrderIsNotPlacedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
 import org.auwerk.otus.arch.orderservice.exception.OrderPositionNotFoundException;
+import org.auwerk.otus.arch.orderservice.service.LicenseService;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
 import org.auwerk.otus.arch.orderservice.service.ProductService;
 
@@ -38,6 +40,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderStatusChangeDao statusChangeDao;
     private final SecurityIdentity securityIdentity;
     private final ProductService productService;
+    private final LicenseService licenseService;
 
     @Override
     public Uni<List<Order>> getAllOrders(int pageSize, int page) {
@@ -152,6 +155,36 @@ public class OrderServiceImpl implements OrderService {
                 .replaceWithVoid()
                 .onFailure(NoSuchElementException.class)
                 .transform(ex -> new OrderNotFoundException(orderId)));
+    }
+
+    @Override
+    public Uni<Void> payOrder(UUID orderId) {
+        return pool.withTransaction(conn -> orderDao.findById(pool, orderId)
+                .invoke(order -> {
+                    if (!order.getUserName().equals(securityIdentity.getPrincipal().getName())) {
+                        throw new OrderCreatedByDifferentUserException(order.getId());
+                    }
+                    if (!OrderStatus.PLACED.equals(order.getStatus())) {
+                        throw new OrderIsNotPlacedException(order.getId());
+                    }
+                })
+                .call(order -> positionDao.findAllByOrderId(pool, order.getId())
+                        .invoke(positions -> order.setPositions(positions)))
+                .call(order -> {
+                    final var positionUnis = order.getPositions().stream()
+                            .map(position -> licenseService.createLicense(position.getProductCode()))
+                            .toList();
+                    if (positionUnis.isEmpty()) {
+                        return Uni.createFrom().voidItem();
+                    }
+                    return Uni.combine().all().unis(positionUnis).discardItems();
+                })
+                .call(order -> Uni.combine().all().unis(
+                        insertOrderStatusChange(pool, order.getId(), OrderStatus.COMPLETED),
+                        orderDao.updateStatus(pool, order.getId(), OrderStatus.COMPLETED)).discardItems())
+                .onFailure(NoSuchElementException.class)
+                .transform(ex -> new OrderNotFoundException(orderId))
+                .replaceWithVoid());
     }
 
     @Override

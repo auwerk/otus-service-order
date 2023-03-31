@@ -33,9 +33,11 @@ import org.auwerk.otus.arch.orderservice.exception.OrderAlreadyPlacedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCanNotBeCanceledException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCanNotBeChangedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCreatedByDifferentUserException;
+import org.auwerk.otus.arch.orderservice.exception.OrderIsNotPlacedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
 import org.auwerk.otus.arch.orderservice.exception.OrderPositionNotFoundException;
 import org.auwerk.otus.arch.orderservice.exception.ProductNotAvailableException;
+import org.auwerk.otus.arch.orderservice.service.LicenseService;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
 import org.auwerk.otus.arch.orderservice.service.ProductService;
 import org.junit.jupiter.api.BeforeEach;
@@ -62,8 +64,9 @@ public class OrderServiceImplTest {
     private final OrderStatusChangeDao statusChangeDao = mock(OrderStatusChangeDao.class);
     private final SecurityIdentity securityIdentity = mock(SecurityIdentity.class);
     private final ProductService productService = mock(ProductService.class);
+    private final LicenseService licenseService = mock(LicenseService.class);
     private final OrderService service = new OrderServiceImpl(pool, orderDao, positionDao, statusChangeDao,
-            securityIdentity, productService);
+            securityIdentity, productService, licenseService);
 
     @BeforeEach
     void mockTransaction() {
@@ -454,6 +457,84 @@ public class OrderServiceImplTest {
                 .assertFailedWith(ProductNotAvailableException.class)
                 .getFailure();
         assertEquals(PRODUCT_CODE, failure.getProductCode());
+    }
+
+    @Test
+    void payOrder_success() {
+        // given
+        final var positions = List.of(buildPosition(), buildPosition());
+        final var order = buildOrder(OrderStatus.PLACED);
+
+        // when
+        when(orderDao.findById(pool, ORDER_ID))
+                .thenReturn(Uni.createFrom().item(order));
+        when(positionDao.findAllByOrderId(pool, ORDER_ID))
+                .thenReturn(Uni.createFrom().item(positions));
+        final var subscriber = service.payOrder(ORDER_ID).subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
+
+        // then
+        subscriber.assertCompleted();
+
+        verify(licenseService, times(2))
+                .createLicense(PRODUCT_CODE);
+        verify(statusChangeDao, times(1))
+                .insert(eq(pool), eq(ORDER_ID),
+                        argThat(statusChange -> OrderStatus.COMPLETED.equals(statusChange.getStatus())));
+        verify(orderDao, times(1))
+                .updateStatus(pool, ORDER_ID, OrderStatus.COMPLETED);
+    }
+
+    @Test
+    void payOrder_notFound() {
+        // when
+        when(orderDao.findById(eq(pool), any(UUID.class)))
+                .thenReturn(Uni.createFrom().failure(new NoSuchElementException("order not found")));
+        final var subscriber = service.payOrder(ORDER_ID).subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
+
+        // then
+        final OrderNotFoundException failure = (OrderNotFoundException) subscriber
+                .assertFailedWith(OrderNotFoundException.class)
+                .getFailure();
+        assertEquals(ORDER_ID, failure.getOrderId());
+    }
+
+    @Test
+    void payOrder_createdByDifferentUser() {
+        // given
+        final var order = buildOrder(OrderStatus.CREATED);
+        order.setUserName("other-user");
+
+        // when
+        when(orderDao.findById(eq(pool), eq(ORDER_ID)))
+                .thenReturn(Uni.createFrom().item(order));
+        final var subscriber = service.payOrder(ORDER_ID).subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
+
+        // then
+        final var failure = (OrderCreatedByDifferentUserException) subscriber
+                .assertFailedWith(OrderCreatedByDifferentUserException.class)
+                .getFailure();
+        assertEquals(ORDER_ID, failure.getOrderId());
+    }
+
+    @Test
+    void payOrder_notPlaced() {
+        // given
+        final var order = buildOrder(OrderStatus.CREATED);
+
+        // when
+        when(orderDao.findById(eq(pool), eq(ORDER_ID)))
+                .thenReturn(Uni.createFrom().item(order));
+        final var subscriber = service.payOrder(ORDER_ID).subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
+
+        // then
+        final var failure = (OrderIsNotPlacedException) subscriber
+                .assertFailedWith(OrderIsNotPlacedException.class)
+                .getFailure();
+        assertEquals(ORDER_ID, failure.getOrderId());
     }
 
     @Test

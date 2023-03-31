@@ -44,6 +44,14 @@ public interface OrderService {
     Uni<Void> placeOrder(UUID orderId);
 
     /**
+     * Оплата размещенного заказа
+     * 
+     * @param orderId идентификатор оплачиваемого заказа
+     * @return
+     */
+    Uni<Void> payOrder(UUID orderId);
+
+    /**
      * Отмена созданного заказа
      * 
      * @param orderId идентификатор отменяемого заказа
