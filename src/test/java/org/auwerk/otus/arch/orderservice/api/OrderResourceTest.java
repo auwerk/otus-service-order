@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.auwerk.otus.arch.orderservice.domain.Order;
 import org.auwerk.otus.arch.orderservice.exception.OrderAlreadyPlacedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCreatedByDifferentUserException;
+import org.auwerk.otus.arch.orderservice.exception.OrderIsNotPlacedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
 import org.auwerk.otus.arch.orderservice.exception.ProductNotAvailableException;
 import org.auwerk.otus.arch.orderservice.service.OrderService;
@@ -100,7 +101,8 @@ public class OrderResourceTest extends AbstractAuthenticatedResourceTest {
     void getOrderById_createdByDifferentUser() {
         // when
         Mockito.when(orderService.getOrderById(ORDER_ID))
-                .thenReturn(Uni.createFrom().failure(new OrderCreatedByDifferentUserException(ORDER_ID)));
+                .thenReturn(Uni.createFrom()
+                        .failure(new OrderCreatedByDifferentUserException(ORDER_ID)));
 
         // then
         RestAssured.given()
@@ -136,7 +138,7 @@ public class OrderResourceTest extends AbstractAuthenticatedResourceTest {
         // then
         RestAssured.given()
                 .auth().oauth2(getAccessToken(USERNAME))
-                .put("/{orderId}", ORDER_ID)
+                .put("/{orderId}/place", ORDER_ID)
                 .then()
                 .statusCode(200);
     }
@@ -150,7 +152,7 @@ public class OrderResourceTest extends AbstractAuthenticatedResourceTest {
         // then
         RestAssured.given()
                 .auth().oauth2(getAccessToken(USERNAME))
-                .put("/{orderId}", ORDER_ID)
+                .put("/{orderId}/place", ORDER_ID)
                 .then()
                 .statusCode(404)
                 .body(Matchers.equalTo("order not found, id=" + ORDER_ID));
@@ -160,12 +162,13 @@ public class OrderResourceTest extends AbstractAuthenticatedResourceTest {
     void placeOrder_createdByDifferentUser() {
         // when
         Mockito.when(orderService.placeOrder(ORDER_ID))
-                .thenReturn(Uni.createFrom().failure(new OrderCreatedByDifferentUserException(ORDER_ID)));
+                .thenReturn(Uni.createFrom()
+                        .failure(new OrderCreatedByDifferentUserException(ORDER_ID)));
 
         // then
         RestAssured.given()
                 .auth().oauth2(getAccessToken(USERNAME))
-                .put("/{orderId}", ORDER_ID)
+                .put("/{orderId}/place", ORDER_ID)
                 .then()
                 .statusCode(403)
                 .body(Matchers.equalTo("order was created by different user, id=" + ORDER_ID));
@@ -180,7 +183,7 @@ public class OrderResourceTest extends AbstractAuthenticatedResourceTest {
         // then
         RestAssured.given()
                 .auth().oauth2(getAccessToken(USERNAME))
-                .put("/{orderId}", ORDER_ID)
+                .put("/{orderId}/place", ORDER_ID)
                 .then()
                 .statusCode(409)
                 .body(Matchers.equalTo("order has been already placed, id=" + ORDER_ID));
@@ -198,9 +201,69 @@ public class OrderResourceTest extends AbstractAuthenticatedResourceTest {
         // then
         RestAssured.given()
                 .auth().oauth2(getAccessToken(USERNAME))
-                .put("/{orderId}", ORDER_ID)
+                .put("/{orderId}/place", ORDER_ID)
                 .then()
                 .statusCode(409)
                 .body(Matchers.equalTo("product not available, code=" + productCode));
+    }
+
+    @Test
+    void payOrder_success() {
+        // when
+        Mockito.when(orderService.payOrder(ORDER_ID))
+                .thenReturn(Uni.createFrom().voidItem());
+
+        // then
+        RestAssured.given()
+                .auth().oauth2(getAccessToken(USERNAME))
+                .put("/{orderId}/pay", ORDER_ID)
+                .then()
+                .statusCode(200);
+    }
+
+    @Test
+    void payOrder_notFound() {
+        // when
+        Mockito.when(orderService.payOrder(ORDER_ID))
+                .thenReturn(Uni.createFrom().failure(new OrderNotFoundException(ORDER_ID)));
+
+        // then
+        RestAssured.given()
+                .auth().oauth2(getAccessToken(USERNAME))
+                .put("/{orderId}/pay", ORDER_ID)
+                .then()
+                .statusCode(404)
+                .body(Matchers.equalTo("order not found, id=" + ORDER_ID));
+    }
+
+    @Test
+    void payOrder_createdByDifferentUser() {
+        // when
+        Mockito.when(orderService.payOrder(ORDER_ID))
+                .thenReturn(Uni.createFrom()
+                        .failure(new OrderCreatedByDifferentUserException(ORDER_ID)));
+
+        // then
+        RestAssured.given()
+                .auth().oauth2(getAccessToken(USERNAME))
+                .put("/{orderId}/pay", ORDER_ID)
+                .then()
+                .statusCode(403)
+                .body(Matchers.equalTo("order was created by different user, id=" + ORDER_ID));
+    }
+
+    @Test
+    void payOrder_notPlaced() {
+        // when
+        Mockito.when(orderService.payOrder(ORDER_ID))
+                .thenReturn(Uni.createFrom().failure(new OrderIsNotPlacedException(ORDER_ID)));
+
+        // then
+        RestAssured.given()
+                .auth().oauth2(getAccessToken(USERNAME))
+                .put("/{orderId}/pay", ORDER_ID)
+                .then()
+                .statusCode(409)
+                .body(Matchers.equalTo("order is not placed, id=" + ORDER_ID));
     }
 }

@@ -21,6 +21,7 @@ import org.auwerk.otus.arch.orderservice.api.dto.CreateOrderResponseDto;
 import org.auwerk.otus.arch.orderservice.exception.OrderAlreadyPlacedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCanNotBeCanceledException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCreatedByDifferentUserException;
+import org.auwerk.otus.arch.orderservice.exception.OrderIsNotPlacedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderNotFoundException;
 import org.auwerk.otus.arch.orderservice.exception.ProductNotAvailableException;
 import org.auwerk.otus.arch.orderservice.mapper.OrderMapper;
@@ -78,11 +79,11 @@ public class OrderResource {
     }
 
     @PUT
-    @Path("/{orderId}")
+    @Path("/{orderId}/place")
     public Uni<Response> placeOrder(@PathParam("orderId") UUID orderId) {
         return orderService
                 .placeOrder(orderId)
-                .map(placedOrder -> Response.ok().build())
+                .replaceWith(Response.ok().build())
                 .onFailure(OrderNotFoundException.class)
                 .recoverWithItem(failure -> Response.status(Status.NOT_FOUND).entity(failure.getMessage()).build())
                 .onFailure(OrderCreatedByDifferentUserException.class)
@@ -90,6 +91,21 @@ public class OrderResource {
                 .onFailure(OrderAlreadyPlacedException.class)
                 .recoverWithItem(failure -> Response.status(Status.CONFLICT).entity(failure.getMessage()).build())
                 .onFailure(ProductNotAvailableException.class)
+                .recoverWithItem(failure -> Response.status(Status.CONFLICT).entity(failure.getMessage()).build())
+                .onFailure()
+                .recoverWithItem(failure -> Response.serverError().entity(failure.getMessage()).build());
+    }
+
+    @PUT
+    @Path("/{orderId}/pay")
+    public Uni<Response> payOrder(@PathParam("orderId") UUID orderId) {
+        return orderService.payOrder(orderId)
+                .replaceWith(Response.ok().build())
+                .onFailure(OrderNotFoundException.class)
+                .recoverWithItem(failure -> Response.status(Status.NOT_FOUND).entity(failure.getMessage()).build())
+                .onFailure(OrderCreatedByDifferentUserException.class)
+                .recoverWithItem(failure -> Response.status(Status.FORBIDDEN).entity(failure.getMessage()).build())
+                .onFailure(OrderIsNotPlacedException.class)
                 .recoverWithItem(failure -> Response.status(Status.CONFLICT).entity(failure.getMessage()).build())
                 .onFailure()
                 .recoverWithItem(failure -> Response.serverError().entity(failure.getMessage()).build());
