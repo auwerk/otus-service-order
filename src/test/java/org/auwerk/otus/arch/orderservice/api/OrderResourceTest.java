@@ -3,6 +3,7 @@ package org.auwerk.otus.arch.orderservice.api;
 import java.util.List;
 import java.util.UUID;
 
+import org.auwerk.otus.arch.orderservice.client.exception.billing.InsufficentFundsException;
 import org.auwerk.otus.arch.orderservice.domain.Order;
 import org.auwerk.otus.arch.orderservice.exception.OrderAlreadyPlacedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCreatedByDifferentUserException;
@@ -265,5 +266,23 @@ public class OrderResourceTest extends AbstractAuthenticatedResourceTest {
                 .then()
                 .statusCode(409)
                 .body(Matchers.equalTo("order is not placed, id=" + ORDER_ID));
+    }
+
+    @Test
+    void payOrder_insufficentFunds() {
+        // given
+        final var propagatedErrorMessage = "insufficent funds";
+
+        // when
+        Mockito.when(orderService.payOrder(ORDER_ID))
+                .thenReturn(Uni.createFrom().failure(new InsufficentFundsException(propagatedErrorMessage)));
+
+        // then
+        RestAssured.given()
+                .auth().oauth2(getAccessToken(USERNAME))
+                .put("/{orderId}/pay", ORDER_ID)
+                .then()
+                .statusCode(403)
+                .body(Matchers.is(propagatedErrorMessage));
     }
 }

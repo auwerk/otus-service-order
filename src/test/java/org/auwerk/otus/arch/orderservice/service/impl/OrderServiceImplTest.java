@@ -22,6 +22,7 @@ import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.function.Function;
 
+import org.auwerk.otus.arch.orderservice.client.exception.billing.InsufficentFundsException;
 import org.auwerk.otus.arch.orderservice.dao.OrderDao;
 import org.auwerk.otus.arch.orderservice.dao.OrderPositionDao;
 import org.auwerk.otus.arch.orderservice.dao.OrderStatusChangeDao;
@@ -483,14 +484,53 @@ public class OrderServiceImplTest {
         // then
         subscriber.assertCompleted();
 
+        // Saga: workloads
         verify(billingService, times(1))
                 .withdrawFunds(eq(OrderServiceImpl.calculateTotal(positions)), anyString());
         verify(licenseService, times(2))
                 .createLicense(PRODUCT_CODE);
+
         verify(statusChangeDao, times(1))
                 .insert(eq(pool), eq(ORDER_ID),
                         argThat(statusChange -> OrderStatus.COMPLETED.equals(statusChange.getStatus())));
         verify(orderDao, times(1))
+                .updateStatus(pool, ORDER_ID, OrderStatus.COMPLETED);
+    }
+
+    @Test
+    void payOrder_insufficentFunds() {
+        // given
+        final var positions = List.of(buildPosition(), buildPosition());
+        final var order = buildOrder(OrderStatus.PLACED);
+
+        // when
+        when(orderDao.findById(pool, ORDER_ID))
+                .thenReturn(Uni.createFrom().item(order));
+        when(positionDao.findAllByOrderId(pool, ORDER_ID))
+                .thenReturn(Uni.createFrom().item(positions));
+        when(licenseService.createLicense(PRODUCT_CODE))
+                .thenReturn(Uni.createFrom().item(UUID.randomUUID()));
+        when(billingService.withdrawFunds(any(BigDecimal.class), anyString()))
+                .thenReturn(Uni.createFrom().failure(new InsufficentFundsException("insufficent funds")));
+        final var subscriber = service.payOrder(ORDER_ID).subscribe()
+                .withSubscriber(UniAssertSubscriber.create());
+
+        // then
+        subscriber.assertFailedWith(InsufficentFundsException.class);
+
+        // Saga: workloads
+        verify(billingService, times(1))
+                .withdrawFunds(eq(OrderServiceImpl.calculateTotal(positions)), anyString());
+        verify(licenseService, times(2))
+                .createLicense(PRODUCT_CODE);
+        // Saga: compensation
+        verify(licenseService, times(2))
+                .deleteLicense(any(UUID.class));
+
+        verify(statusChangeDao, never())
+                .insert(eq(pool), eq(ORDER_ID),
+                        argThat(statusChange -> OrderStatus.COMPLETED.equals(statusChange.getStatus())));
+        verify(orderDao, never())
                 .updateStatus(pool, ORDER_ID, OrderStatus.COMPLETED);
     }
 

@@ -9,6 +9,7 @@ import java.util.UUID;
 import javax.enterprise.context.ApplicationScoped;
 
 import org.auwerk.arch.reactivesaga.Saga;
+import org.auwerk.arch.reactivesaga.exception.SagaException;
 import org.auwerk.arch.reactivesaga.log.InMemoryExecutionLog;
 import org.auwerk.otus.arch.orderservice.dao.OrderDao;
 import org.auwerk.otus.arch.orderservice.dao.OrderPositionDao;
@@ -198,7 +199,9 @@ public class OrderServiceImpl implements OrderService {
                                     .replaceWithVoid(),
                             context -> licenseService.deleteLicense(context.getValue("licenseId"))));
 
-                    return saga.execute();
+                    return saga.execute()
+                            .onFailure(SagaException.class)
+                            .transform(ex -> sagaExectionLog.getAllFailures().get(0));
                 })
                 .call(order -> Uni.combine().all().unis(
                         insertOrderStatusChange(pool, order.getId(), OrderStatus.COMPLETED),

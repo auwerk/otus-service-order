@@ -18,6 +18,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import org.auwerk.otus.arch.orderservice.api.dto.CreateOrderResponseDto;
+import org.auwerk.otus.arch.orderservice.client.exception.billing.InsufficentFundsException;
 import org.auwerk.otus.arch.orderservice.exception.OrderAlreadyPlacedException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCanNotBeCanceledException;
 import org.auwerk.otus.arch.orderservice.exception.OrderCreatedByDifferentUserException;
@@ -107,6 +108,8 @@ public class OrderResource {
                 .recoverWithItem(failure -> Response.status(Status.FORBIDDEN).entity(failure.getMessage()).build())
                 .onFailure(OrderIsNotPlacedException.class)
                 .recoverWithItem(failure -> Response.status(Status.CONFLICT).entity(failure.getMessage()).build())
+                .onFailure(InsufficentFundsException.class)
+                .recoverWithItem(failure -> Response.status(Status.FORBIDDEN).entity(failure.getMessage()).build())
                 .onFailure()
                 .recoverWithItem(failure -> Response.serverError().entity(failure.getMessage()).build());
     }
