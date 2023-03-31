@@ -33,9 +33,9 @@ public interface BillingServiceOperationClient {
     @ClientExceptionMapper
     static RuntimeException toException(Response response) {
         if (response.getStatus() == 404) {
-            return new InsufficentFundsException(response.readEntity(String.class));
-        } else if (response.getStatus() == 403) {
             return new OperationNotFoundException(response.readEntity(String.class));
+        } else if (response.getStatus() == 403) {
+            return new InsufficentFundsException(response.readEntity(String.class));
         } else {
             return null;
         }
